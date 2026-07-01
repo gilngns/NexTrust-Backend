@@ -17,7 +17,7 @@
 
 <br/>
 
-## <img src="https://cdn.simpleicons.org/web3dotjs/black" width="24" /> THE INFRASTRUCTURE
+## <img src="https://cdn.simpleicons.org/web3dotjs/white" width="24" /> THE INFRASTRUCTURE
 
 **NexTrust Backend** beroperasi sebagai *hybrid relayer* tingkat lanjut. Sistem ini memecahkan masalah adopsi Web3 dengan cara menyerap transaksi mata uang fiat dari Web2 (QRIS Midtrans), lalu mengonversinya menjadi representasi nilai *On-Chain* (MockXIDR) yang dikunci ke dalam **TrustFundEscrow Smart Contract** di jaringan Polygon. 
 
@@ -25,23 +25,23 @@ Dengan arsitektur *Custodial Wallet* tersentralisasi, donatur dan yayasan mendap
 
 <br/>
 
-## <img src="https://cdn.simpleicons.org/ethereum/black" width="24" /> PROTOCOL CAPABILITIES
+## <img src="https://cdn.simpleicons.org/ethereum/white" width="24" /> PROTOCOL CAPABILITIES
 
-* <img src="https://cdn.simpleicons.org/cashapp/black" width="16" /> **Fiat to Crypto Bridge**
+* <img src="https://cdn.simpleicons.org/cashapp/white" width="16" /> **Fiat to Crypto Bridge**
   Mendengarkan *webhook* secara *real-time* dari Midtrans dan secara otomatis melakukan *minting* MockXIDR ke *Smart Contract* untuk donasi yang berhasil.
 
-* <img src="https://cdn.simpleicons.org/auth0/black" width="16" /> **Enterprise Security Matrix**
+* <img src="https://cdn.simpleicons.org/auth0/white" width="16" /> **Enterprise Security Matrix**
   Dilengkapi pertahanan berlapis: **Zod** untuk validasi skema input (Anti-Injection), **Helmet** untuk perlindungan *header* otomatis, serta **Express Rate Limiter** anti DDoS. Pesan *error* internal diisolasi total agar tidak bocor.
 
-* <img src="https://cdn.simpleicons.org/openai/black" width="16" /> **AI Oracle Authorization**
+* <img src="https://cdn.simpleicons.org/openai/white" width="16" /> **AI Oracle Authorization**
   Menyediakan endpoint khusus (terlindungi) untuk *AI Evaluator* yang mengirim skor kewajaran RAB dan verifikasi kemajuan *milestone* secara *On-Chain*.
 
-* <img src="https://cdn.simpleicons.org/swagger/black" width="16" /> **OpenAPI 3.0 Standard**
+* <img src="https://cdn.simpleicons.org/swagger/white" width="16" /> **OpenAPI 3.0 Standard**
   Spesifikasi kontrak API interaktif tersedia sepenuhnya melalui Swagger UI untuk integrasi *frontend* yang presisi.
 
 <br/>
 
-## <img src="https://cdn.simpleicons.org/codemagic/black" width="24" /> SYSTEM ARCHITECTURE
+## <img src="https://cdn.simpleicons.org/codemagic/white" width="24" /> SYSTEM ARCHITECTURE
 
 Dirancang dengan pola *Clean Architecture* modern untuk menjaga integritas *codebase*:
 
@@ -59,7 +59,7 @@ src/
 
 <br/>
 
-## <img src="https://cdn.simpleicons.org/gnometerminal/black" width="24" /> DEPLOYMENT SEQUENCE
+## <img src="https://cdn.simpleicons.org/gnometerminal/white" width="24" /> DEPLOYMENT SEQUENCE
 
 **1. Prerequisites**
 Node.js v18+, PostgreSQL, kredensial Midtrans Server Key, serta *Private Key* dompet relayer yang telah didanai (POL Testnet).
@@ -86,14 +86,14 @@ npm start       # Production
 
 <br/>
 
-## <img src="https://cdn.simpleicons.org/read-the-docs/black" width="24" /> DEVELOPER CONSOLE
+## <img src="https://cdn.simpleicons.org/readthedocs/white" width="24" /> DEVELOPER CONSOLE
 
 Saat node berjalan, akses konsol dokumentasi interaktif untuk simulasi API:
 **`http://localhost:3000/api-docs`**
 
 <br/>
 
-## <img src="https://cdn.simpleicons.org/ngrok/black" width="24" /> MIDTRANS LISTENER
+## <img src="https://cdn.simpleicons.org/ngrok/white" width="24" /> MIDTRANS LISTENER
 
 Untuk mengaktifkan relayer otomatis, konfigurasikan **Notification URL** pada *dashboard* Midtrans (Settings → Configuration) ke proksi berikut:
 ```text
