@@ -1,101 +1,108 @@
-# NexTrust Backend
+# 🌟 NexTrust Backend API
 
-Backend relayer NexTrust — menjembatani QRIS (Midtrans), AI evaluator, dan smart contract `TrustFundEscrow` di Polygon Amoy. Custodial: pengguna tak pernah menyentuh wallet.
+![Node.js](https://img.shields.io/badge/Node.js-43853D?style=for-the-badge&logo=node.js&logoColor=white)
+![Express.js](https://img.shields.io/badge/Express.js-404D59?style=for-the-badge)
+![Prisma](https://img.shields.io/badge/Prisma-3982CE?style=for-the-badge&logo=Prisma&logoColor=white)
+![Polygon](https://img.shields.io/badge/Polygon-8247E5?style=for-the-badge&logo=polygon&logoColor=white)
 
-## Arsitektur
+**NexTrust Backend** adalah sistem *relayer* mutakhir yang menjembatani transaksi Web2 (QRIS Midtrans) dengan ekosistem Web3 (Smart Contract `TrustFundEscrow` di jaringan Polygon Amoy). Sistem ini menggunakan mekanisme *Custodial Wallet* tersentralisasi, sehingga donatur dan yayasan tidak perlu berurusan dengan kerumitan *crypto wallet* (Metamask, dsb).
 
-- **Express** — REST API
-- **Prisma + PostgreSQL** — data off-chain (yayasan, campaign, donasi, milestone)
-- **ethers.js** — semua transaksi on-chain (wallet backend = BACKEND_ROLE)
-- **Midtrans** — QRIS (sandbox)
-- **JWT + bcrypt** — auth berbasis peran (ADMIN / FOUNDATION / PEMDA)
+Kebenaran mutlak aliran dana selalu disimpan secara transparan di *On-Chain* (Smart Contract), sedangkan database (PostgreSQL) hanya berfungsi sebagai *caching* metadata dan status demi kecepatan performa.
 
-Kebenaran dana selalu on-chain; DB hanya menyimpan metadata & status.
+---
 
-## Setup
+## 🚀 Fitur Utama (Core Features)
 
-```bash
-npm install
-cp .env.example .env         # isi nilainya
-npm run prisma:generate      # generate Prisma client
-npm run prisma:migrate       # buat tabel di database
-npm run dev                  # jalankan server
-```
+- **🌉 Web2 to Web3 Bridge:** Terintegrasi langsung dengan Midtrans (QRIS). Setiap donasi Rupiah akan otomatis di-*minting* menjadi token `MockXIDR` dan didepositkan ke Smart Contract Escrow.
+- **🛡️ Enterprise-Grade Security:** 
+  - **Zod Validation:** Skema validasi ketat untuk anti-injeksi dan memastikan integritas payload.
+  - **Security Middlewares:** Dilengkapi dengan `Helmet` (HTTP Security Headers), `CORS`, dan `Express Rate Limit` (Anti DDoS/Brute Force).
+  - **Anti-Leak Error Handler:** Mencegah kebocoran *stack-trace* atau skema database ke klien.
+- **🤖 AI Oracle Integrations:** Mengotentikasi skor kewajaran RAB dan persentase penyelesaian *milestone* dari AI Evaluator.
+- **📚 Interactive API Docs:** Dilengkapi dokumentasi interaktif (Swagger UI) yang mengikuti standar OpenAPI 3.0.
 
-Wajib diisi di `.env`: `DATABASE_URL`, `BACKEND_PRIVATE_KEY`, `MIDTRANS_SERVER_KEY`.
-`ESCROW_ADDRESS` & `XIDR_ADDRESS` sudah diisi default (Amoy).
+---
 
-## Alur Sistem
+## 🏗️ Arsitektur (Clean Architecture)
 
-```
-Donor (Flutter) --donate--> QRIS Midtrans --webhook--> backend
-  --mint MockXIDR--> depositXIDR --> dana KUNCI di escrow
+Proyek ini telah melalui proses *Refactoring* ekstensif dan menerapkan pola *Separation of Concerns* untuk mempermudah skalabilitas tim:
 
-Yayasan --submit bukti--> submitMilestone
-AI (Favian) --skor--> oracleCallback --> VALIDATED
-Admin --> releaseAdvance / releaseMilestone --> dana CAIR ke beneficiary
-Pemda --> resolveFrozen (approve/reject) bila dibekukan
-```
-
-## Endpoint
-
-### Auth
-| Method | Path | Fungsi |
-|--------|------|--------|
-| POST | `/api/auth/register` | Daftar (FOUNDATION/PEMDA/ADMIN) |
-| POST | `/api/auth/login` | Login → JWT |
-
-### Campaign
-| Method | Path | Akses | Fungsi |
-|--------|------|-------|--------|
-| GET | `/api/campaigns` | publik | Daftar campaign |
-| GET | `/api/campaigns/:id` | publik | Detail + status on-chain |
-| POST | `/api/campaigns` | FOUNDATION/ADMIN | Buat campaign (DB + on-chain) |
-
-### Donasi
-| Method | Path | Fungsi |
-|--------|------|--------|
-| POST | `/api/campaigns/:id/donate` | Mulai donasi → QRIS |
-| GET | `/api/campaigns/:id/donations` | Daftar donasi |
-| POST | `/api/webhook/midtrans` | Webhook Midtrans → mint+deposit |
-
-### Milestone
-| Method | Path | Akses | Fungsi |
-|--------|------|-------|--------|
-| POST | `/api/campaigns/:id/milestones/:i/submit` | FOUNDATION | Submit bukti |
-| POST | `/api/campaigns/:id/milestones/:i/score` | AI | Kirim skor → oracleCallback |
-| POST | `/api/campaigns/:id/release-advance` | ADMIN/FOUNDATION | Cairkan advance |
-| POST | `/api/campaigns/:id/milestones/:i/release` | ADMIN/FOUNDATION | Cairkan milestone |
-
-### Pemda
-| Method | Path | Akses | Fungsi |
-|--------|------|-------|--------|
-| POST | `/api/campaigns/:id/resolve` | PEMDA/ADMIN | Approve/reject campaign frozen |
-
-## Konfigurasi Midtrans
-
-Set **Notification URL** di dashboard Midtrans (Settings → Configuration) ke:
-`https://<domain-backend>/api/webhook/midtrans`
-
-Saat lokal, pakai tunneling (ngrok) agar Midtrans bisa menjangkau webhook.
-
-## Struktur
-
-```
-prisma/schema.prisma        # model data
+```text
 src/
-  config/                   # env + prisma client
-  middleware/auth.js        # JWT + role guard
-  services/
-    contractService.js      # panggilan on-chain
-    oracleService.js        # tanda tangan skor AI
-    tokenService.js         # MockXIDR mint/approve
-    midtransService.js      # QRIS + verifikasi webhook
-    authService.js          # register/login JWT
-    campaignService.js      # orkestrasi campaign (DB+chain)
-    donationService.js      # donasi → QRIS → deposit
-    milestoneService.js     # submit → skor → release
-  routes/                   # auth, campaigns, webhook
-  scripts/                  # utilitas cek koneksi & demo
-  server.js
+├── app.js                   # Jantung konfigurasi Express (Middleware, Security, dll)
+├── server.js                # Entry point murni untuk menghidupkan server
+├── config/                  # Konfigurasi Prisma, Swagger, & variabel ENV
+├── controllers/             # Lapisan pengendali logika HTTP (Req/Res)
+├── middleware/              # Global Error Handler, Auth Guard, & Zod Validator
+├── routes/                  # Pemetaan rute API pusat (Buku Menu)
+├── services/                # Lapisan inti: Logika Bisnis & Interaksi Smart Contract
+└── validations/             # Skema validasi input Zod
 ```
+
+---
+
+## ⚙️ Persiapan & Instalasi (Getting Started)
+
+### 1. Kebutuhan Sistem
+- Node.js (v18 atau lebih baru)
+- PostgreSQL Database
+- Akun Midtrans (Sandbox)
+- Saldo POL / MATIC (Testnet) untuk dompet relayer backend.
+
+### 2. Instalasi
+```bash
+# Clone repositori
+git clone https://github.com/gilngns/NexTrust-Backend.git
+cd NexTrust-Backend
+
+# Install dependensi
+npm install
+
+# Setup Variabel Lingkungan
+cp .env.example .env
+# Wajib isi: DATABASE_URL, BACKEND_PRIVATE_KEY, MIDTRANS_SERVER_KEY
+```
+
+### 3. Migrasi Database (Prisma)
+```bash
+# Sinkronisasi skema ke database & generate Client
+npm run prisma:generate
+npm run prisma:migrate
+```
+
+### 4. Menjalankan Server
+```bash
+# Mode pengembangan (Auto-reload)
+npm run dev
+
+# Mode produksi
+npm start
+```
+
+---
+
+## 📖 Dokumentasi API (Swagger)
+
+Saat server berjalan, Anda dapat menjelajahi dan menguji seluruh endpoints API secara visual melalui **Swagger UI**:
+
+👉 **`http://localhost:3000/api-docs`**
+
+Swagger secara otomatis merangkum spesifikasi lengkap untuk:
+- Auth (`/api/auth/*`)
+- Campaigns (`/api/campaigns/*`)
+- RAB (`/api/rab/*`)
+- Payouts (`/api/payouts/*`)
+- Webhooks (`/api/webhook/midtrans`)
+
+---
+
+## 🔗 Integrasi Midtrans (Webhook)
+
+Agar Midtrans dapat mengabari backend saat ada donasi yang berhasil dibayar, Anda harus menyetel **Notification URL** di dashboard Midtrans (Settings → Configuration) ke:
+```text
+https://<domain-backend-anda>/api/webhook/midtrans
+```
+*(Catatan: Saat pengembangan lokal, gunakan tunnel seperti **Ngrok** atau **Localtunnel** agar localhost Anda dapat dijangkau oleh Midtrans).*
+
+---
+*Dikembangkan dengan ❤️ untuk transparansi donasi masa depan.*
