@@ -1,108 +1,107 @@
-# 🌟 NexTrust Backend API
+<div align="center">
 
-![Node.js](https://img.shields.io/badge/Node.js-43853D?style=for-the-badge&logo=node.js&logoColor=white)
-![Express.js](https://img.shields.io/badge/Express.js-404D59?style=for-the-badge)
-![Prisma](https://img.shields.io/badge/Prisma-3982CE?style=for-the-badge&logo=Prisma&logoColor=white)
-![Polygon](https://img.shields.io/badge/Polygon-8247E5?style=for-the-badge&logo=polygon&logoColor=white)
+# NEXTRUST HYBRID RELAYER 
 
-**NexTrust Backend** adalah sistem *relayer* mutakhir yang menjembatani transaksi Web2 (QRIS Midtrans) dengan ekosistem Web3 (Smart Contract `TrustFundEscrow` di jaringan Polygon Amoy). Sistem ini menggunakan mekanisme *Custodial Wallet* tersentralisasi, sehingga donatur dan yayasan tidak perlu berurusan dengan kerumitan *crypto wallet* (Metamask, dsb).
+<p align="center">
+  <img src="https://img.shields.io/badge/Node.js-1A1A1A?style=for-the-badge&logo=node.js&logoColor=68A063" alt="Node.js" />
+  <img src="https://img.shields.io/badge/Express-1A1A1A?style=for-the-badge&logo=express&logoColor=white" alt="Express" />
+  <img src="https://img.shields.io/badge/Prisma-1A1A1A?style=for-the-badge&logo=prisma&logoColor=white" alt="Prisma" />
+  <img src="https://img.shields.io/badge/Polygon_Amoy-1A1A1A?style=for-the-badge&logo=polygon&logoColor=8247E5" alt="Polygon" />
+</p>
 
-Kebenaran mutlak aliran dana selalu disimpan secara transparan di *On-Chain* (Smart Contract), sedangkan database (PostgreSQL) hanya berfungsi sebagai *caching* metadata dan status demi kecepatan performa.
+**Bridging Fiat Web2 to Trustless Web3 Escrow**
 
----
-
-## 🚀 Fitur Utama (Core Features)
-
-- **🌉 Web2 to Web3 Bridge:** Terintegrasi langsung dengan Midtrans (QRIS). Setiap donasi Rupiah akan otomatis di-*minting* menjadi token `MockXIDR` dan didepositkan ke Smart Contract Escrow.
-- **🛡️ Enterprise-Grade Security:** 
-  - **Zod Validation:** Skema validasi ketat untuk anti-injeksi dan memastikan integritas payload.
-  - **Security Middlewares:** Dilengkapi dengan `Helmet` (HTTP Security Headers), `CORS`, dan `Express Rate Limit` (Anti DDoS/Brute Force).
-  - **Anti-Leak Error Handler:** Mencegah kebocoran *stack-trace* atau skema database ke klien.
-- **🤖 AI Oracle Integrations:** Mengotentikasi skor kewajaran RAB dan persentase penyelesaian *milestone* dari AI Evaluator.
-- **📚 Interactive API Docs:** Dilengkapi dokumentasi interaktif (Swagger UI) yang mengikuti standar OpenAPI 3.0.
+</div>
 
 ---
 
-## 🏗️ Arsitektur (Clean Architecture)
+<br/>
 
-Proyek ini telah melalui proses *Refactoring* ekstensif dan menerapkan pola *Separation of Concerns* untuk mempermudah skalabilitas tim:
+## <img src="https://cdn.simpleicons.org/web3dotjs/black" width="24" /> THE INFRASTRUCTURE
+
+**NexTrust Backend** beroperasi sebagai *hybrid relayer* tingkat lanjut. Sistem ini memecahkan masalah adopsi Web3 dengan cara menyerap transaksi mata uang fiat dari Web2 (QRIS Midtrans), lalu mengonversinya menjadi representasi nilai *On-Chain* (MockXIDR) yang dikunci ke dalam **TrustFundEscrow Smart Contract** di jaringan Polygon. 
+
+Dengan arsitektur *Custodial Wallet* tersentralisasi, donatur dan yayasan mendapatkan pengalaman mulus layaknya aplikasi Web2, sementara kebenaran dan keamanan dana dijamin sepenuhnya oleh desentralisasi Web3.
+
+<br/>
+
+## <img src="https://cdn.simpleicons.org/ethereum/black" width="24" /> PROTOCOL CAPABILITIES
+
+* <img src="https://cdn.simpleicons.org/cashapp/black" width="16" /> **Fiat to Crypto Bridge**
+  Mendengarkan *webhook* secara *real-time* dari Midtrans dan secara otomatis melakukan *minting* MockXIDR ke *Smart Contract* untuk donasi yang berhasil.
+
+* <img src="https://cdn.simpleicons.org/auth0/black" width="16" /> **Enterprise Security Matrix**
+  Dilengkapi pertahanan berlapis: **Zod** untuk validasi skema input (Anti-Injection), **Helmet** untuk perlindungan *header* otomatis, serta **Express Rate Limiter** anti DDoS. Pesan *error* internal diisolasi total agar tidak bocor.
+
+* <img src="https://cdn.simpleicons.org/openai/black" width="16" /> **AI Oracle Authorization**
+  Menyediakan endpoint khusus (terlindungi) untuk *AI Evaluator* yang mengirim skor kewajaran RAB dan verifikasi kemajuan *milestone* secara *On-Chain*.
+
+* <img src="https://cdn.simpleicons.org/swagger/black" width="16" /> **OpenAPI 3.0 Standard**
+  Spesifikasi kontrak API interaktif tersedia sepenuhnya melalui Swagger UI untuk integrasi *frontend* yang presisi.
+
+<br/>
+
+## <img src="https://cdn.simpleicons.org/codemagic/black" width="24" /> SYSTEM ARCHITECTURE
+
+Dirancang dengan pola *Clean Architecture* modern untuk menjaga integritas *codebase*:
 
 ```text
 src/
-├── app.js                   # Jantung konfigurasi Express (Middleware, Security, dll)
-├── server.js                # Entry point murni untuk menghidupkan server
-├── config/                  # Konfigurasi Prisma, Swagger, & variabel ENV
-├── controllers/             # Lapisan pengendali logika HTTP (Req/Res)
-├── middleware/              # Global Error Handler, Auth Guard, & Zod Validator
-├── routes/                  # Pemetaan rute API pusat (Buku Menu)
-├── services/                # Lapisan inti: Logika Bisnis & Interaksi Smart Contract
-└── validations/             # Skema validasi input Zod
+├── app.js                   [ Core Express Engine & Security Middleware ]
+├── server.js                [ Node.js Entry Point ]
+├── config/                  [ Environment Variables & Client Configurations ]
+├── controllers/             [ HTTP Request/Response Handlers ]
+├── middleware/              [ Role Guards, Global Error Traps, Zod Validators ]
+├── routes/                  [ Centralized API Endpoints ]
+├── services/                [ Business Logic & Smart Contract Signers ]
+└── validations/             [ Zod Schema Definitions ]
 ```
 
----
+<br/>
 
-## ⚙️ Persiapan & Instalasi (Getting Started)
+## <img src="https://cdn.simpleicons.org/gnometerminal/black" width="24" /> DEPLOYMENT SEQUENCE
 
-### 1. Kebutuhan Sistem
-- Node.js (v18 atau lebih baru)
-- PostgreSQL Database
-- Akun Midtrans (Sandbox)
-- Saldo POL / MATIC (Testnet) untuk dompet relayer backend.
+**1. Prerequisites**
+Node.js v18+, PostgreSQL, kredensial Midtrans Server Key, serta *Private Key* dompet relayer yang telah didanai (POL Testnet).
 
-### 2. Instalasi
+**2. Bootstrapping**
 ```bash
-# Clone repositori
 git clone https://github.com/gilngns/NexTrust-Backend.git
 cd NexTrust-Backend
-
-# Install dependensi
 npm install
-
-# Setup Variabel Lingkungan
 cp .env.example .env
-# Wajib isi: DATABASE_URL, BACKEND_PRIVATE_KEY, MIDTRANS_SERVER_KEY
 ```
 
-### 3. Migrasi Database (Prisma)
+**3. Database Sync**
 ```bash
-# Sinkronisasi skema ke database & generate Client
 npm run prisma:generate
 npm run prisma:migrate
 ```
 
-### 4. Menjalankan Server
+**4. Ignition**
 ```bash
-# Mode pengembangan (Auto-reload)
-npm run dev
-
-# Mode produksi
-npm start
+npm run dev     # Development (Watch Mode)
+npm start       # Production
 ```
 
----
+<br/>
 
-## 📖 Dokumentasi API (Swagger)
+## <img src="https://cdn.simpleicons.org/read-the-docs/black" width="24" /> DEVELOPER CONSOLE
 
-Saat server berjalan, Anda dapat menjelajahi dan menguji seluruh endpoints API secara visual melalui **Swagger UI**:
+Saat node berjalan, akses konsol dokumentasi interaktif untuk simulasi API:
+**`http://localhost:3000/api-docs`**
 
-👉 **`http://localhost:3000/api-docs`**
+<br/>
 
-Swagger secara otomatis merangkum spesifikasi lengkap untuk:
-- Auth (`/api/auth/*`)
-- Campaigns (`/api/campaigns/*`)
-- RAB (`/api/rab/*`)
-- Payouts (`/api/payouts/*`)
-- Webhooks (`/api/webhook/midtrans`)
+## <img src="https://cdn.simpleicons.org/ngrok/black" width="24" /> MIDTRANS LISTENER
 
----
-
-## 🔗 Integrasi Midtrans (Webhook)
-
-Agar Midtrans dapat mengabari backend saat ada donasi yang berhasil dibayar, Anda harus menyetel **Notification URL** di dashboard Midtrans (Settings → Configuration) ke:
+Untuk mengaktifkan relayer otomatis, konfigurasikan **Notification URL** pada *dashboard* Midtrans (Settings → Configuration) ke proksi berikut:
 ```text
-https://<domain-backend-anda>/api/webhook/midtrans
+https://<domain-backend>/api/webhook/midtrans
 ```
-*(Catatan: Saat pengembangan lokal, gunakan tunnel seperti **Ngrok** atau **Localtunnel** agar localhost Anda dapat dijangkau oleh Midtrans).*
+*(Gunakan tunnel seperti Localtunnel atau Ngrok pada saat fase pengembangan lokal).*
 
----
-*Dikembangkan dengan ❤️ untuk transparansi donasi masa depan.*
+<br/>
+<div align="center">
+  <small>Decentralized Trust. Centralized Convenience.</small>
+</div>
