@@ -1,0 +1,168 @@
+// NexTrust — Prisma schema (custodial: user tanpa wallet Web3)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  FOUNDATION
+  PEMDA
+  DONOR
+}
+
+enum CampaignStatus {
+  DRAFT
+  ACTIVE
+  FUNDED
+  VALIDATED
+  ADVANCE_PAID
+  MILESTONE_SUBMITTED
+  FROZEN
+  COMPLETED
+}
+
+enum DonationStatus {
+  PENDING
+  PAID
+  DEPOSITED
+  FAILED
+  EXPIRED
+}
+
+enum MilestoneStatus {
+  PENDING
+  SUBMITTED
+  EVALUATING
+  APPROVED
+  REJECTED
+  RELEASED
+}
+
+enum PayoutStatus {
+  PENDING // dana ada di wallet custodial, menunggu dicairkan ke bank
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         UserRole @default(FOUNDATION)
+
+  // Custodial wallet — di-generate & dikontrol backend. User tidak tahu.
+  custodialAddress String? @unique
+  encryptedKey     String? // private key terenkripsi (AES-256-GCM)
+
+  // Rekening bank tujuan pencairan (yayasan)
+  bankName      String?
+  bankAccountNo String?
+  bankHolder    String?
+
+  campaigns Campaign[]
+  payouts   Payout[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Campaign {
+  id              String         @id @default(cuid())
+  onChainId       String         @unique
+  title           String
+  description     String?
+  imageUrl        String?
+  rabCID          String?
+
+  targetAmount    BigInt
+  advanceAmount   BigInt
+  milestoneAmount BigInt
+  totalMilestones Int
+
+  status       CampaignStatus @default(DRAFT)
+  txHashCreate String?
+
+  foundation   User   @relation(fields: [foundationId], references: [id])
+  foundationId String
+  beneficiary  String // = custodialAddress yayasan (on-chain)
+
+  donations  Donation[]
+  milestones Milestone[]
+  payouts    Payout[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Donation {
+  id           String         @id @default(cuid())
+  campaign     Campaign       @relation(fields: [campaignId], references: [id])
+  campaignId   String
+
+  donorName    String?
+  donorAddress String // custodial address donatur (di-generate backend)
+  amount       BigInt
+
+  status  DonationStatus @default(PENDING)
+  orderId String         @unique
+  qrisUrl String?
+  paidAt  DateTime?
+
+  txHashDeposit String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Milestone {
+  id           String          @id @default(cuid())
+  campaign     Campaign        @relation(fields: [campaignId], references: [id])
+  campaignId   String
+
+  index        Int
+  title        String?
+  evidenceCID  String?
+  metadataHash String?
+
+  aiScore Int?
+  status  MilestoneStatus @default(PENDING)
+
+  txHashSubmit  String?
+  txHashOracle  String?
+  txHashRelease String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([campaignId, index])
+}
+
+// Pencatatan pencairan dana dari wallet custodial yayasan ke rekening bank.
+model Payout {
+  id         String       @id @default(cuid())
+  campaign   Campaign     @relation(fields: [campaignId], references: [id])
+  campaignId String
+  foundation User         @relation(fields: [foundationId], references: [id])
+  foundationId String
+
+  amount     BigInt
+  status     PayoutStatus @default(PENDING)
+
+  bankName      String?
+  bankAccountNo String?
+
+  // Simulasi: id transaksi payout (Midtrans disbursement di produksi)
+  payoutRef String?
+  note      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
