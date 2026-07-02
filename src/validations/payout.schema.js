@@ -1,11 +1,7 @@
-const { z } = require("zod");
+import { z } from 'zod';
 
-const requestPayoutSchema = z.object({
+export const requestPayoutSchema = z.object({
   body: z.object({
     amount: z.number().positive("Jumlah pencairan harus lebih besar dari 0"),
   }),
 });
-
-module.exports = {
-  requestPayoutSchema,
-};

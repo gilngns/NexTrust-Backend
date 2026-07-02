@@ -1,139 +1,148 @@
-const { ethers } = require("ethers");
-const config = require("../config");
-const escrowAbi = require("../../abi/TrustFundEscrow.json");
+import { ethers } from 'ethers';
+import config from '../config/index.js';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-/**
- * ContractService — satu-satunya tempat backend berbicara dengan blockchain.
- * Semua panggilan on-chain memakai wallet BACKEND (pemegang BACKEND_ROLE).
- */
-class ContractService {
-  constructor() {
-    this.provider = new ethers.JsonRpcProvider(config.chain.rpcUrl);
-    this.backendWallet = new ethers.Wallet(
-      config.chain.backendPrivateKey,
-      this.provider
-    );
-    this.escrow = new ethers.Contract(
-      config.chain.escrowAddress,
-      escrowAbi,
-      this.backendWallet
-    );
-  }
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const escrowAbi = JSON.parse(fs.readFileSync(path.join(__dirname, '../../abi/TrustFundEscrow.json'), 'utf8'));
 
-  toCampaignId(str) {
-    return ethers.id(str);
-  }
+const provider = new ethers.JsonRpcProvider(config.chain.rpcUrl);
+const backendWallet = new ethers.Wallet(
+  config.chain.backendPrivateKey,
+  provider
+);
+const escrow = new ethers.Contract(
+  config.chain.escrowAddress,
+  escrowAbi,
+  backendWallet
+);
 
-  async status() {
-    const [network, blockNumber, balance] = await Promise.all([
-      this.provider.getNetwork(),
-      this.provider.getBlockNumber(),
-      this.provider.getBalance(this.backendWallet.address),
-    ]);
-    return {
-      chainId: Number(network.chainId),
-      blockNumber,
-      backendAddress: this.backendWallet.address,
-      backendBalancePOL: ethers.formatEther(balance),
-      escrowAddress: config.chain.escrowAddress,
-    };
-  }
+async function toCampaignId(str) {
+  return ethers.id(str);
+};
 
-  async getCampaignState(campaignIdStr) {
-    return await this.escrow.getCampaignState(this.toCampaignId(campaignIdStr));
-  }
+async function status() {
+  const [network, blockNumber, balance] = await Promise.all([
+    provider.getNetwork(),
+    provider.getBlockNumber(),
+    provider.getBalance(backendWallet.address),
+  ]);
+  return {
+    chainId: Number(network.chainId),
+    blockNumber,
+    backendAddress: backendWallet.address,
+    backendBalancePOL: ethers.formatEther(balance),
+    escrowAddress: config.chain.escrowAddress,
+  };
+};
 
-  async getLockedFunds(campaignIdStr) {
-    const locked = await this.escrow.getLockedFunds(
-      this.toCampaignId(campaignIdStr)
-    );
-    return locked.toString();
-  }
+async function getCampaignState(campaignIdStr) {
+  return await escrow.getCampaignState(await toCampaignId(campaignIdStr));
+};
 
-  async getCampaign(campaignIdStr) {
-    const c = await this.escrow.getCampaign(this.toCampaignId(campaignIdStr));
+async function getLockedFunds(campaignIdStr) {
+  const locked = await escrow.getLockedFunds(
+    await toCampaignId(campaignIdStr)
+  );
+  return locked.toString();
+};
 
-    return {
-      campaignId: c.campaignId,
-      targetAmount: c.targetAmount.toString(),
-      totalCollected: c.totalCollected.toString(),
-      milestoneAmount: c.milestoneAmount.toString(),
-      advanceAmount: c.advanceAmount.toString(),
-      totalMilestones: Number(c.totalMilestones),
-      currentMilestone: Number(c.currentMilestone),
-      state: Number(c.state),
-      advanceReleased: c.advanceReleased,
-      beneficiary: c.beneficiary,
-    };
-  }
+async function getCampaign(campaignIdStr) {
+  const c = await escrow.getCampaign(await toCampaignId(campaignIdStr));
 
-  async createCampaign({
-    campaignIdStr,
+  return {
+    campaignId: c.campaignId,
+    targetAmount: c.targetAmount.toString(),
+    totalCollected: c.totalCollected.toString(),
+    milestoneAmount: c.milestoneAmount.toString(),
+    advanceAmount: c.advanceAmount.toString(),
+    totalMilestones: Number(c.totalMilestones),
+    currentMilestone: Number(c.currentMilestone),
+    state: Number(c.state),
+    advanceReleased: c.advanceReleased,
+    beneficiary: c.beneficiary,
+  };
+};
+
+const createCampaign = async ({
+  campaignIdStr,
+  targetAmount,
+  advanceAmount,
+  milestoneAmount,
+  totalMilestones,
+  rabCID,
+  beneficiary,
+}) => {
+  const id = await toCampaignId(campaignIdStr);
+  const tx = await escrow.createCampaign(
+    id,
     targetAmount,
     advanceAmount,
     milestoneAmount,
     totalMilestones,
     rabCID,
-    beneficiary,
-  }) {
-    const id = this.toCampaignId(campaignIdStr);
-    const tx = await this.escrow.createCampaign(
-      id,
-      targetAmount,
-      advanceAmount,
-      milestoneAmount,
-      totalMilestones,
-      rabCID,
-      beneficiary
-    );
-    const receipt = await tx.wait();
-    return { txHash: receipt.hash, campaignId: id };
-  }
+    beneficiary
+  );
+  const receipt = await tx.wait();
+  return { txHash: receipt.hash, campaignId: id };
+};
 
-  async depositXIDR({ campaignIdStr, amount, donorAddress }) {
-    const id = this.toCampaignId(campaignIdStr);
-    const tx = await this.escrow.depositXIDR(id, amount, donorAddress);
-    const receipt = await tx.wait();
-    return { txHash: receipt.hash };
-  }
+async function depositXIDR({ campaignIdStr, amount, donorAddress }) {
+  const id = await toCampaignId(campaignIdStr);
+  const tx = await escrow.depositXIDR(id, amount, donorAddress);
+  const receipt = await tx.wait();
+  return { txHash: receipt.hash };
+};
 
-  async releaseAdvance(campaignIdStr) {
-    const tx = await this.escrow.releaseAdvance(
-      this.toCampaignId(campaignIdStr)
-    );
-    const receipt = await tx.wait();
-    return { txHash: receipt.hash };
-  }
+async function releaseAdvance(campaignIdStr) {
+  const tx = await escrow.releaseAdvance(
+    await toCampaignId(campaignIdStr)
+  );
+  const receipt = await tx.wait();
+  return { txHash: receipt.hash };
+};
 
-  async submitMilestone({ campaignIdStr, evidenceCID, metadataHash }) {
-    const id = this.toCampaignId(campaignIdStr);
-    const tx = await this.escrow.submitMilestone(id, evidenceCID, metadataHash);
-    const receipt = await tx.wait();
-    return { txHash: receipt.hash };
-  }
+async function submitMilestone({ campaignIdStr, evidenceCID, metadataHash }) {
+  const id = await toCampaignId(campaignIdStr);
+  const tx = await escrow.submitMilestone(id, evidenceCID, metadataHash);
+  const receipt = await tx.wait();
+  return { txHash: receipt.hash };
+};
 
-  async releaseMilestone(campaignIdStr) {
-    const tx = await this.escrow.releaseMilestone(
-      this.toCampaignId(campaignIdStr)
-    );
-    const receipt = await tx.wait();
-    return { txHash: receipt.hash };
-  }
+async function releaseMilestone(campaignIdStr) {
+  const tx = await escrow.releaseMilestone(
+    await toCampaignId(campaignIdStr)
+  );
+  const receipt = await tx.wait();
+  return { txHash: receipt.hash };
+};
 
-  async resolveFrozen({ campaignIdStr, approve }) {
-    const id = this.toCampaignId(campaignIdStr);
-    const tx = await this.escrow.resolveFrozen(id, approve);
-    const receipt = await tx.wait();
-    return { txHash: receipt.hash };
-  }
+async function resolveFrozen({ campaignIdStr, approve }) {
+  const id = await toCampaignId(campaignIdStr);
+  const tx = await escrow.resolveFrozen(id, approve);
+  const receipt = await tx.wait();
+  return { txHash: receipt.hash };
+};
 
-  async claimRefund({ campaignIdStr, donorSigner }) {
+async function claimRefund({ campaignIdStr, donorSigner }) {
+  const id = await toCampaignId(campaignIdStr);
+  const tx = await escrow.claimRefund(id);
+  const receipt = await tx.wait();
+  return { txHash: receipt.hash };
+};
 
-    const id = this.toCampaignId(campaignIdStr);
-    const tx = await this.escrow.claimRefund(id);
-    const receipt = await tx.wait();
-    return { txHash: receipt.hash };
-  }
-}
-
-module.exports = new ContractService();
+export default {
+  status,
+  getCampaignState,
+  getLockedFunds,
+  getCampaign,
+  createCampaign,
+  depositXIDR,
+  releaseAdvance,
+  submitMilestone,
+  releaseMilestone,
+  resolveFrozen,
+  claimRefund,
+};

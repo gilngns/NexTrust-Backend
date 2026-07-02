@@ -1,99 +1,76 @@
-const crypto = require("crypto");
-const config = require("../config");
+import crypto from 'crypto';
+import config from '../config/index.js';
+import AppError from '../utils/AppError.js';
 
-/**
- * MidtransService — integrasi QRIS via Midtrans (Core API).
- *
- * Dipakai untuk membuat transaksi QRIS dan memverifikasi notifikasi webhook.
- * Menggunakan fetch bawaan Node (v18+), tanpa SDK tambahan.
- */
-class MidtransService {
-  constructor() {
-    this.serverKey = config.midtrans.serverKey;
-    this.isProduction = config.midtrans.isProduction;
-    this.baseUrl = this.isProduction
-      ? "https://api.midtrans.com"
-      : "https://api.sandbox.midtrans.com";
-  }
+const serverKey = config.midtrans.serverKey;
+const isProduction = config.midtrans.isProduction;
+const baseUrl = isProduction
+  ? "https://api.midtrans.com"
+  : "https://api.sandbox.midtrans.com";
 
-  _authHeader() {
+async function _authHeader() {
+  const token = Buffer.from(serverKey + ":").toString("base64");
+  return `Basic ${token}`;
+};
 
-    const token = Buffer.from(this.serverKey + ":").toString("base64");
-    return `Basic ${token}`;
-  }
-
-  /**
-   * Buat transaksi QRIS. Mengembalikan URL/string QR untuk ditampilkan.
-   * @param {string} orderId - unik per donasi
-   * @param {number} grossAmount - nominal dalam Rupiah (integer)
-   */
-  async createQris(orderId, grossAmount) {
-    const res = await fetch(`${this.baseUrl}/v2/charge`, {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-        Authorization: this._authHeader(),
+async function createQris(orderId, grossAmount) {
+  const res = await fetch(`${baseUrl}/v2/charge`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      Authorization: await _authHeader(),
+    },
+    body: JSON.stringify({
+      payment_type: "qris",
+      transaction_details: {
+        order_id: orderId,
+        gross_amount: grossAmount,
       },
-      body: JSON.stringify({
-        payment_type: "qris",
-        transaction_details: {
-          order_id: orderId,
-          gross_amount: grossAmount,
-        },
-        qris: { acquirer: "gopay" },
-      }),
-    });
+      qris: { acquirer: "gopay" },
+    }),
+  });
 
-    const data = await res.json();
-    if (!res.ok) {
-      throw new Error(
-        `Midtrans error: ${data.status_message || JSON.stringify(data)}`
-      );
-    }
-
-    const qrAction = (data.actions || []).find(
-      (a) => a.name === "generate-qr-code"
+  const data = await res.json();
+  if (!res.ok) {
+    throw AppError.badGateway(
+      `Midtrans error: ${data.status_message || JSON.stringify(data)}`
     );
-
-    return {
-      orderId,
-      transactionId: data.transaction_id,
-      qrisUrl: qrAction ? qrAction.url : null,
-      raw: data,
-    };
   }
 
-  /**
-   * Verifikasi keaslian notifikasi webhook Midtrans.
-   * signature_key = sha512(order_id + status_code + gross_amount + serverKey)
-   */
-  verifySignature(notification) {
-    const { order_id, status_code, gross_amount, signature_key } = notification;
-    const expected = crypto
-      .createHash("sha512")
-      .update(order_id + status_code + gross_amount + this.serverKey)
-      .digest("hex");
-    return expected === signature_key;
-  }
+  const qrAction = (data.actions || []).find(
+    (a) => a.name === "generate-qr-code"
+  );
 
-  /**
-   * Tentukan status akhir dari notifikasi.
-   * @returns {"PAID"|"PENDING"|"FAILED"|"EXPIRED"}
-   */
-  interpretStatus(notification) {
-    const { transaction_status, fraud_status } = notification;
-    if (
-      transaction_status === "capture" ||
-      transaction_status === "settlement"
-    ) {
-      if (fraud_status && fraud_status !== "accept") return "FAILED";
-      return "PAID";
-    }
-    if (transaction_status === "pending") return "PENDING";
-    if (transaction_status === "expire") return "EXPIRED";
-    return "FAILED";
-  }
-}
+  return {
+    orderId,
+    transactionId: data.transaction_id,
+    qrisUrl: qrAction ? qrAction.url : null,
+    raw: data,
+  };
+};
 
-module.exports = new MidtransService();
+async function verifySignature(notification) {
+  const { order_id, status_code, gross_amount, signature_key } = notification;
+  const expected = crypto
+    .createHash("sha512")
+    .update(order_id + status_code + gross_amount + serverKey)
+    .digest("hex");
+  return expected === signature_key;
+};
+
+async function interpretStatus(notification) {
+  const { transaction_status, fraud_status } = notification;
+  if (
+    transaction_status === "capture" ||
+    transaction_status === "settlement"
+  ) {
+    if (fraud_status && fraud_status !== "accept") return "FAILED";
+    return "PAID";
+  }
+  if (transaction_status === "pending") return "PENDING";
+  if (transaction_status === "expire") return "EXPIRED";
+  return "FAILED";
+};
+
+export default { createQris, verifySignature, interpretStatus };

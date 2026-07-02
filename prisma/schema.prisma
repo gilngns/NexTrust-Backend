@@ -1,5 +1,3 @@
-// NexTrust — Prisma schema (custodial: user tanpa wallet Web3)
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -45,7 +43,7 @@ enum MilestoneStatus {
 }
 
 enum PayoutStatus {
-  PENDING // dana ada di wallet custodial, menunggu dicairkan ke bank
+  PENDING
   PROCESSING
   COMPLETED
   FAILED
@@ -58,11 +56,9 @@ model User {
   name         String
   role         UserRole @default(FOUNDATION)
 
-  // Custodial wallet — di-generate & dikontrol backend. User tidak tahu.
   custodialAddress String? @unique
-  encryptedKey     String? // private key terenkripsi (AES-256-GCM)
+  encryptedKey     String?
 
-  // Rekening bank tujuan pencairan (yayasan)
   bankName      String?
   bankAccountNo String?
   bankHolder    String?
@@ -75,12 +71,12 @@ model User {
 }
 
 model Campaign {
-  id              String         @id @default(cuid())
-  onChainId       String         @unique
-  title           String
-  description     String?
-  imageUrl        String?
-  rabCID          String?
+  id          String  @id @default(cuid())
+  onChainId   String  @unique
+  title       String
+  description String?
+  imageUrl    String?
+  rabCID      String?
 
   targetAmount    BigInt
   advanceAmount   BigInt
@@ -92,7 +88,7 @@ model Campaign {
 
   foundation   User   @relation(fields: [foundationId], references: [id])
   foundationId String
-  beneficiary  String // = custodialAddress yayasan (on-chain)
+  beneficiary  String
 
   donations  Donation[]
   milestones Milestone[]
@@ -103,12 +99,12 @@ model Campaign {
 }
 
 model Donation {
-  id           String         @id @default(cuid())
-  campaign     Campaign       @relation(fields: [campaignId], references: [id])
-  campaignId   String
+  id         String   @id @default(cuid())
+  campaign   Campaign @relation(fields: [campaignId], references: [id])
+  campaignId String
 
   donorName    String?
-  donorAddress String // custodial address donatur (di-generate backend)
+  donorAddress String
   amount       BigInt
 
   status  DonationStatus @default(PENDING)
@@ -123,9 +119,9 @@ model Donation {
 }
 
 model Milestone {
-  id           String          @id @default(cuid())
-  campaign     Campaign        @relation(fields: [campaignId], references: [id])
-  campaignId   String
+  id         String   @id @default(cuid())
+  campaign   Campaign @relation(fields: [campaignId], references: [id])
+  campaignId String
 
   index        Int
   title        String?
@@ -145,21 +141,19 @@ model Milestone {
   @@unique([campaignId, index])
 }
 
-// Pencatatan pencairan dana dari wallet custodial yayasan ke rekening bank.
 model Payout {
-  id         String       @id @default(cuid())
-  campaign   Campaign     @relation(fields: [campaignId], references: [id])
-  campaignId String
-  foundation User         @relation(fields: [foundationId], references: [id])
+  id           String   @id @default(cuid())
+  campaign     Campaign @relation(fields: [campaignId], references: [id])
+  campaignId   String
+  foundation   User     @relation(fields: [foundationId], references: [id])
   foundationId String
 
-  amount     BigInt
-  status     PayoutStatus @default(PENDING)
+  amount BigInt
+  status PayoutStatus @default(PENDING)
 
   bankName      String?
   bankAccountNo String?
 
-  // Simulasi: id transaksi payout (Midtrans disbursement di produksi)
   payoutRef String?
   note      String?
 

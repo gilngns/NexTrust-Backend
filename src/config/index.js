@@ -1,4 +1,6 @@
-require("dotenv").config();
+import dotenv from "dotenv";
+
+dotenv.config();
 
 function required(name) {
   const v = process.env[name];
@@ -11,12 +13,13 @@ function required(name) {
 }
 
 const config = {
-  port: process.env.PORT || 3000,
+  port: parseInt(process.env.PORT || "3000", 10),
+  nodeEnv: process.env.NODE_ENV || "development",
 
   databaseUrl: process.env.DATABASE_URL || "",
 
   jwtSecret: process.env.JWT_SECRET || "dev-secret-ganti-di-produksi",
-  jwtExpiresIn: process.env.JWT_EXPIRES_IN || "7d",
+  jwtExpiresIn: process.env.JWT_EXPIRES_IN || "15m",
 
   walletEncryptionSecret:
     process.env.WALLET_ENCRYPTION_SECRET || "dev-wallet-secret-ganti",
@@ -36,4 +39,4 @@ const config = {
   },
 };
 
-module.exports = config;
+export default config;

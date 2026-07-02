@@ -1,6 +1,6 @@
-const { z } = require("zod");
+import { z } from 'zod';
 
-const checkRabSchema = z.object({
+export const checkRabSchema = z.object({
   body: z.object({
     campaignDraftId: z.string().nullable().optional(),
     targetAmount: z.number().positive("Target harus lebih besar dari 0"),
@@ -13,7 +13,3 @@ const checkRabSchema = z.object({
     ).min(1, "RAB harus memiliki setidaknya 1 item"),
   }),
 });
-
-module.exports = {
-  checkRabSchema,
-};

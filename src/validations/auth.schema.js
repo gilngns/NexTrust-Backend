@@ -1,6 +1,6 @@
-const { z } = require("zod");
+import { z } from 'zod';
 
-const registerSchema = z.object({
+export const registerSchema = z.object({
   body: z.object({
     email: z.string().email("Format email tidak valid"),
     password: z.string().min(6, "Password minimal 6 karakter"),
@@ -12,14 +12,9 @@ const registerSchema = z.object({
   }),
 });
 
-const loginSchema = z.object({
+export const loginSchema = z.object({
   body: z.object({
     email: z.string().email("Format email tidak valid"),
     password: z.string().min(1, "Password tidak boleh kosong"),
   }),
 });
-
-module.exports = {
-  registerSchema,
-  loginSchema,
-};

@@ -1,119 +1,114 @@
-const prisma = require("../config/prisma");
-const contractService = require("./contractService");
+import prisma from '../config/prisma.js';
+import AppError from '../utils/AppError.js';
+import contractService from './contractService.js';
 
-/**
- * CampaignService — orkestrasi campaign.
- * beneficiary otomatis = custodial wallet yayasan (bukan input user).
- */
-class CampaignService {
-  async create({
-    onChainId,
-    title,
-    description,
-    imageUrl,
-    rabCID,
-    targetAmount,
-    advanceAmount,
-    milestoneAmount,
+async function _serialize(campaign) {
+  const out = { ...campaign };
+  for (const k of ["targetAmount", "advanceAmount", "milestoneAmount"]) {
+    if (out[k] !== undefined && out[k] !== null) out[k] = out[k].toString();
+  }
+  if (out.donations) {
+    out.donations = out.donations.map((d) => ({
+      ...d,
+      amount: d.amount.toString(),
+    }));
+  }
+  return out;
+};
+
+const create = async ({
+  onChainId,
+  title,
+  description,
+  imageUrl,
+  rabCID,
+  targetAmount,
+  advanceAmount,
+  milestoneAmount,
+  totalMilestones,
+  foundationId,
+}) => {
+
+  const foundation = await prisma.user.findUnique({
+    where: { id: foundationId },
+  });
+  if (!foundation) throw AppError.notFound();
+  if (!foundation.custodialAddress) {
+    throw AppError.badRequest();
+  }
+  const beneficiary = foundation.custodialAddress;
+
+  const onchain = await contractService.createCampaign({
+    campaignIdStr: onChainId,
+    targetAmount: BigInt(targetAmount),
+    advanceAmount: BigInt(advanceAmount),
+    milestoneAmount: BigInt(milestoneAmount),
     totalMilestones,
-    foundationId,
-  }) {
+    rabCID: rabCID || "QmPlaceholder",
+    beneficiary,
+  });
 
-    const foundation = await prisma.user.findUnique({
-      where: { id: foundationId },
-    });
-    if (!foundation) throw new Error("Yayasan tidak ditemukan");
-    if (!foundation.custodialAddress) {
-      throw new Error("Yayasan belum punya wallet custodial");
-    }
-    const beneficiary = foundation.custodialAddress;
-
-    const onchain = await contractService.createCampaign({
-      campaignIdStr: onChainId,
+  const campaign = await prisma.campaign.create({
+    data: {
+      onChainId,
+      title,
+      description,
+      imageUrl,
+      rabCID,
       targetAmount: BigInt(targetAmount),
       advanceAmount: BigInt(advanceAmount),
       milestoneAmount: BigInt(milestoneAmount),
       totalMilestones,
-      rabCID: rabCID || "QmPlaceholder",
+      foundationId,
       beneficiary,
-    });
-
-    const campaign = await prisma.campaign.create({
-      data: {
-        onChainId,
-        title,
-        description,
-        imageUrl,
-        rabCID,
-        targetAmount: BigInt(targetAmount),
-        advanceAmount: BigInt(advanceAmount),
-        milestoneAmount: BigInt(milestoneAmount),
-        totalMilestones,
-        foundationId,
-        beneficiary,
-        status: "ACTIVE",
-        txHashCreate: onchain.txHash,
-        milestones: {
-          create: Array.from({ length: totalMilestones }, (_, i) => ({
-            index: i,
-            title: `Milestone ${i + 1}`,
-          })),
-        },
+      status: "ACTIVE",
+      txHashCreate: onchain.txHash,
+      milestones: {
+        create: Array.from({ length: totalMilestones }, (_, i) => ({
+          index: i,
+          title: `Milestone ${i + 1}`,
+        })),
       },
-      include: { milestones: true },
-    });
+    },
+    include: { milestones: true },
+  });
 
-    return this._serialize(campaign);
-  }
+  return await _serialize(campaign);
+};
 
-  async list() {
-    const campaigns = await prisma.campaign.findMany({
-      orderBy: { createdAt: "desc" },
-      include: { foundation: { select: { name: true } } },
-    });
-    return campaigns.map((c) => this._serialize(c));
-  }
+async function list() {
+  const campaigns = await prisma.campaign.findMany({
+    orderBy: { createdAt: "desc" },
+    include: { foundation: { select: { name: true } } },
+  });
+  return await Promise.all(campaigns.map(async (c) => await _serialize(c)));
+};
 
-  async getById(id) {
-    const campaign = await prisma.campaign.findUnique({
-      where: { id },
-      include: {
-        milestones: { orderBy: { index: "asc" } },
-        donations: { orderBy: { createdAt: "desc" } },
-        foundation: {
-          select: { name: true, bankName: true, bankAccountNo: true },
-        },
+async function getById(id) {
+  const campaign = await prisma.campaign.findUnique({
+    where: { id },
+    include: {
+      milestones: { orderBy: { index: "asc" } },
+      donations: { orderBy: { createdAt: "desc" } },
+      foundation: {
+        select: { name: true, bankName: true, bankAccountNo: true },
       },
-    });
-    if (!campaign) throw new Error("Campaign tidak ditemukan");
+    },
+  });
+  if (!campaign) throw AppError.notFound();
 
-    let onChainState = null;
-    let lockedFunds = null;
-    try {
-      onChainState = await contractService.getCampaignState(campaign.onChainId);
-      lockedFunds = await contractService.getLockedFunds(campaign.onChainId);
-    } catch (_) {}
+  let onChainState = null;
+  let lockedFunds = null;
+  try {
+    onChainState = await contractService.getCampaignState(campaign.onChainId);
+    lockedFunds = await contractService.getLockedFunds(campaign.onChainId);
+  } catch (_) {}
 
-    return {
-      ...this._serialize(campaign),
-      onChainState: onChainState !== null ? Number(onChainState) : null,
-      lockedFunds,
-    };
-  }
+  return {
+    ...(await _serialize(campaign)),
+    onChainState: onChainState !== null ? Number(onChainState) : null,
+    lockedFunds,
+  };
+};
 
-  _serialize(campaign) {
-    const out = { ...campaign };
-    for (const k of ["targetAmount", "advanceAmount", "milestoneAmount"]) {
-      if (out[k] !== undefined && out[k] !== null) out[k] = out[k].toString();
-    }
-    if (out.donations) {
-      out.donations = out.donations.map((d) => ({
-        ...d,
-        amount: d.amount.toString(),
-      }));
-    }
-    return out;
-  }
-}
-
-module.exports = new CampaignService();
+export default { create, list, getById };

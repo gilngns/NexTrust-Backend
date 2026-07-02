@@ -1,5 +1,5 @@
-const { ZodError } = require("zod");
-const AppError = require("../utils/AppError");
+import { ZodError } from "zod";
+import AppError from "../utils/AppError.js";
 
 const validate = (schema) => (req, res, next) => {
   try {
@@ -12,10 +12,10 @@ const validate = (schema) => (req, res, next) => {
   } catch (err) {
     if (err instanceof ZodError) {
       const errorMessage = err.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join(", ");
-      return next(new AppError(`Validation Error: ${errorMessage}`, 400));
+      return next(AppError.badRequest());
     }
     next(err);
   }
 };
 
-module.exports = validate;
+export default validate;

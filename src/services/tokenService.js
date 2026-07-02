@@ -1,5 +1,6 @@
-const { ethers } = require("ethers");
-const config = require("../config");
+import { ethers } from 'ethers';
+import config from '../config/index.js';
+import AppError from '../utils/AppError.js';
 
 const XIDR_ABI = [
   "function mint(address to, uint256 amount) external",
@@ -9,67 +10,53 @@ const XIDR_ABI = [
   "function owner() external view returns (address)",
 ];
 
-/**
- * TokenService — mengelola MockXIDR untuk simulasi dana donasi.
- *
- * Di testnet, backend me-mint MockXIDR untuk mensimulasikan pembayaran QRIS
- * yang sudah masuk, lalu meng-approve dan menyetorkannya ke escrow.
- */
-class TokenService {
-  constructor() {
-    this.provider = new ethers.JsonRpcProvider(config.chain.rpcUrl);
-    this.backendWallet = new ethers.Wallet(
-      config.chain.backendPrivateKey,
-      this.provider
-    );
-
-    if (!config.chain.xidrAddress) {
-      throw new Error("XIDR_ADDRESS belum diset di .env");
-    }
-    this.token = new ethers.Contract(
-      config.chain.xidrAddress,
-      XIDR_ABI,
-      this.backendWallet
-    );
-  }
-
-  /** Konversi jumlah manusiawi (mis. 1000) ke satuan token (6 desimal). */
-  async toUnits(humanAmount) {
-    const decimals = await this.token.decimals();
-    return ethers.parseUnits(humanAmount.toString(), decimals);
-  }
-
-  /** Siapa owner token — untuk memastikan backend boleh mint. */
-  async owner() {
-    return await this.token.owner();
-  }
-
-  /** Apakah wallet backend adalah owner (boleh mint). */
-  async backendIsOwner() {
-    const owner = await this.token.owner();
-    return owner.toLowerCase() === this.backendWallet.address.toLowerCase();
-  }
-
-  async balanceOf(address) {
-    const bal = await this.token.balanceOf(address);
-    return bal.toString();
-  }
-
-  /** Mint sejumlah token ke sebuah alamat (butuh owner). */
-  async mint(toAddress, humanAmount) {
-    const amount = await this.toUnits(humanAmount);
-    const tx = await this.token.mint(toAddress, amount);
-    const receipt = await tx.wait();
-    return { txHash: receipt.hash, amount: amount.toString() };
-  }
-
-  /** Approve escrow agar bisa menarik token dari wallet backend. */
-  async approveEscrow(humanAmount) {
-    const amount = await this.toUnits(humanAmount);
-    const tx = await this.token.approve(config.chain.escrowAddress, amount);
-    const receipt = await tx.wait();
-    return { txHash: receipt.hash, amount: amount.toString() };
-  }
+if (!config.chain.xidrAddress) {
+  throw AppError.internal();
 }
 
-module.exports = new TokenService();
+const provider = new ethers.JsonRpcProvider(config.chain.rpcUrl);
+const backendWallet = new ethers.Wallet(
+  config.chain.backendPrivateKey,
+  provider
+);
+
+const token = new ethers.Contract(
+  config.chain.xidrAddress,
+  XIDR_ABI,
+  backendWallet
+);
+
+async function owner() {
+  const decimals = await token.decimals();
+  return ethers.parseUnits(humanAmount.toString(), decimals);
+};
+
+async function backendIsOwner() {
+  return await token.owner();
+};
+
+async function balanceOf(address) {
+  const contractOwner = await token.owner();
+  return contractOwner.toLowerCase() === backendWallet.address.toLowerCase();
+};
+
+async function toUnits(humanAmount) {
+  const bal = await token.balanceOf(address);
+  return bal.toString();
+};
+
+async function mint(toAddress, humanAmount) {
+  const amount = await toUnits(humanAmount);
+  const tx = await token.mint(toAddress, amount);
+  const receipt = await tx.wait();
+  return { txHash: receipt.hash, amount: amount.toString() };
+};
+
+async function approveEscrow(humanAmount) {
+  const amount = await toUnits(humanAmount);
+  const tx = await token.approve(config.chain.escrowAddress, amount);
+  const receipt = await tx.wait();
+  return { txHash: receipt.hash, amount: amount.toString() };
+};
+
+export default { toUnits, owner, backendIsOwner, balanceOf, mint, approveEscrow, backendWallet };

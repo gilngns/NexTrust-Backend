@@ -1,79 +1,57 @@
-const { ethers } = require("ethers");
-const config = require("../config");
-const escrowAbi = require("../../abi/TrustFundEscrow.json");
+import { ethers } from 'ethers';
+import config from '../config/index.js';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-/**
- * OracleService — merepresentasikan "AI yang menilai".
- *
- * Setelah AI mengevaluasi bukti milestone dan menghasilkan skor (0-100),
- * skor itu harus dikirim ke kontrak lewat oracleCallback. Kontrak hanya
- * menerima skor yang ditandatangani oracle yang sah (ECDSA), terikat pada
- * alamat kontrak + chainId + campaignId + nonce (anti-replay).
- *
- * Format signature di sini WAJIB sama persis dengan yang diverifikasi
- * di dalam kontrak.
- */
-class OracleService {
-  constructor() {
-    this.provider = new ethers.JsonRpcProvider(config.chain.rpcUrl);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const escrowAbi = JSON.parse(fs.readFileSync(path.join(__dirname, '../../abi/TrustFundEscrow.json'), 'utf8'));
 
-    const oracleKey =
-      config.chain.oraclePrivateKey || config.chain.backendPrivateKey;
-    this.oracleWallet = new ethers.Wallet(oracleKey, this.provider);
+const provider = new ethers.JsonRpcProvider(config.chain.rpcUrl);
 
-    this.backendWallet = new ethers.Wallet(
-      config.chain.backendPrivateKey,
-      this.provider
-    );
-    this.escrow = new ethers.Contract(
-      config.chain.escrowAddress,
-      escrowAbi,
-      this.backendWallet
-    );
-  }
+const oracleKey =
+  config.chain.oraclePrivateKey || config.chain.backendPrivateKey;
+const oracleWallet = new ethers.Wallet(oracleKey, provider);
 
-  /**
-   * Buat signature untuk sebuah skor.
-   * Meniru: solidityPackedKeccak256(
-   *   ["address","uint256","bytes32","uint8","uint256"],
-   *   [escrow, chainId, campaignId, score, nonce]
-   * ) lalu ditandatangani sebagai Ethereum Signed Message.
-   */
-  async signScore({ campaignId, score, nonce }) {
-    const network = await this.provider.getNetwork();
-    const chainId = Number(network.chainId);
+const backendWallet = new ethers.Wallet(
+  config.chain.backendPrivateKey,
+  provider
+);
+const escrow = new ethers.Contract(
+  config.chain.escrowAddress,
+  escrowAbi,
+  backendWallet
+);
 
-    const messageHash = ethers.solidityPackedKeccak256(
-      ["address", "uint256", "bytes32", "uint8", "uint256"],
-      [config.chain.escrowAddress, chainId, campaignId, score, nonce]
-    );
+async function signScore({ campaignId, score, nonce }) {
+  const network = await provider.getNetwork();
+  const chainId = Number(network.chainId);
 
-    return await this.oracleWallet.signMessage(ethers.getBytes(messageHash));
-  }
+  const messageHash = ethers.solidityPackedKeccak256(
+    ["address", "uint256", "bytes32", "uint8", "uint256"],
+    [config.chain.escrowAddress, chainId, campaignId, score, nonce]
+  );
 
-  /**
-   * Kirim hasil penilaian ke kontrak.
-   * @param {string} campaignIdStr - id campaign (string, akan di-hash)
-   * @param {number} score - 0..100 dari AI evaluator
-   * @param {number} nonce - nonce oracle untuk campaign ini
-   */
-  async submitScore(campaignIdStr, score, nonce) {
-    const campaignId = ethers.id(campaignIdStr);
-    const signature = await this.signScore({ campaignId, score, nonce });
+  return await oracleWallet.signMessage(ethers.getBytes(messageHash));
+};
 
-    const tx = await this.escrow.oracleCallback(
-      campaignId,
-      score,
-      nonce,
-      signature
-    );
-    const receipt = await tx.wait();
-    return { txHash: receipt.hash, score, nonce };
-  }
+async function submitScore(campaignIdStr, score, nonce) {
+  const campaignId = ethers.id(campaignIdStr);
+  const signature = await signScore({ campaignId, score, nonce });
 
-  get oracleAddress() {
-    return this.oracleWallet.address;
-  }
-}
+  const tx = await escrow.oracleCallback(
+    campaignId,
+    score,
+    nonce,
+    signature
+  );
+  const receipt = await tx.wait();
+  return { txHash: receipt.hash, score, nonce };
+};
 
-module.exports = new OracleService();
+async function getOracleAddress() {
+  return oracleWallet.address;
+};
+
+export default { signScore, submitScore, getOracleAddress };

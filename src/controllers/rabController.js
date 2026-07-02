@@ -1,10 +1,18 @@
-const rabService = require("../services/rabService");
+import rabService from "../services/rabService.js";
 
-exports.checkRab = async (req, res) => {
-  const result = await rabService.check(req.body);
-  res.json({ ok: true, rab: result });
-};
+export async function checkRab(req, res, next) {
+  try {
+    const result = await rabService.check(req.body);
+    res.json({ ok: true, rab: result });
+  } catch (error) {
+    next(error);
+  }
+}
 
-exports.getRabById = async (req, res) => {
-  res.json({ ok: true, rab: await rabService.getById(req.params.id) });
-};
+export async function getRabById(req, res, next) {
+  try {
+    res.json({ ok: true, rab: await rabService.getById(req.params.id) });
+  } catch (error) {
+    next(error);
+  }
+}

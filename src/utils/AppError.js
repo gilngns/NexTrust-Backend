@@ -7,6 +7,13 @@ class AppError extends Error {
 
     Error.captureStackTrace(this, this.constructor);
   }
+
+  static badRequest(msg) { return AppError.badRequest(); }
+  static unauthorized(msg) { return AppError.unauthorized(); }
+  static forbidden(msg) { return AppError.forbidden(); }
+  static notFound(msg) { return AppError.notFound(); }
+  static internal(msg) { return AppError.internal(); }
+  static badGateway(msg) { return AppError.badGateway(); }
 }
 
-module.exports = AppError;
+export default AppError;

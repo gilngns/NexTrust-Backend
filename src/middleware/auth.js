@@ -1,28 +1,25 @@
-const authService = require("../services/authService");
+import AppError from "../utils/AppError.js";
+import authService from "../services/authService.js";
 
-/** Wajib login: verifikasi token JWT. */
-function authenticate(req, res, next) {
+export async function authenticate(req, res, next) {
   const header = req.headers.authorization || "";
   const token = header.startsWith("Bearer ") ? header.slice(7) : null;
   if (!token) {
-    return res.status(401).json({ ok: false, error: "Token tidak ada" });
+    return next(AppError.unauthorized());
   }
   try {
-    req.user = authService.verifyToken(token);
+    req.user = await authService.verifyToken(token);
     next();
   } catch (_) {
-    return res.status(401).json({ ok: false, error: "Token tidak valid" });
+    return next(AppError.unauthorized());
   }
 }
 
-/** Batasi ke role tertentu. Pakai setelah authenticate. */
-function authorize(...roles) {
+export function authorize(...roles) {
   return (req, res, next) => {
     if (!req.user || !roles.includes(req.user.role)) {
-      return res.status(403).json({ ok: false, error: "Akses ditolak" });
+      return next(AppError.forbidden());
     }
     next();
   };
 }
-
-module.exports = { authenticate, authorize };

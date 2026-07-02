@@ -1,0 +1,493 @@
+openapi: 3.0.0
+info:
+  title: NexTrust Backend API
+  version: 0.3.0
+  description: "API backend NexTrust — platform crowdfunding donasi yayasan
+    berbasis blockchain (full custodial). User tidak menyentuh wallet Web3.
+    Semua respons berformat { ok: boolean, ... }."
+servers:
+  - url: http://localhost:3000
+    description: Local
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Error:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: false
+        error:
+          type: string
+          example: Pesan kesalahan
+tags:
+  - name: Health
+    description: Status koneksi
+  - name: Auth
+    description: Registrasi & login
+  - name: Campaign
+    description: Manajemen campaign donasi
+  - name: RAB
+    description: Pengecekan kewajaran anggaran (AI)
+  - name: Donasi
+    description: Donasi via QRIS
+  - name: Milestone
+    description: Bukti, penilaian AI, pelepasan dana
+  - name: Payout
+    description: Pencairan ke rekening bank
+  - name: Pemda
+    description: Resolusi campaign beku
+paths:
+  /api/payouts/{payoutId}/process:
+    post:
+      tags:
+        - Payout
+      summary: Proses pencairan (simulasi transfer bank)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: payoutId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+  /api/campaigns/{id}/payouts:
+    get:
+      tags:
+        - Payout
+      summary: List semua pencairan untuk campaign ini
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+    post:
+      tags:
+        - Payout
+      summary: Ajukan pencairan ke rekening bank
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                amount:
+                  type: number
+                  example: 5000000
+      responses:
+        "200":
+          description: OK
+  /api/campaigns:
+    get:
+      tags:
+        - Campaign
+      summary: List semua campaign
+      responses:
+        "200":
+          description: Berhasil
+    post:
+      tags:
+        - Campaign
+      summary: Buat campaign (Yayasan / Admin)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  example: Bantuan Air Bersih
+                description:
+                  type: string
+                  example: Deskripsi campaign
+                targetAmount:
+                  type: number
+                  example: 10000000
+                durationDays:
+                  type: number
+                  example: 30
+      responses:
+        "200":
+          description: OK
+  /api/campaigns/{id}:
+    get:
+      tags:
+        - Campaign
+      summary: Detail campaign
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+        "404":
+          description: Not Found
+  /api/campaigns/{id}/donations:
+    get:
+      tags:
+        - Donasi
+      summary: List donasi untuk campaign
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+    post:
+      tags:
+        - Donasi
+      summary: Mulai donasi (generate Midtrans Snap Token)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                donorName:
+                  type: string
+                  example: John Doe
+                amount:
+                  type: number
+                  example: 50000
+      responses:
+        "200":
+          description: OK
+  /api/auth/register:
+    post:
+      tags:
+        - Auth
+      summary: Registrasi user (yayasan/pemda/admin)
+      description: Yayasan otomatis mendapat custodial wallet (disembunyikan) &
+        mengisi rekening bank.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  example: yayasan@nextrust.id
+                password:
+                  type: string
+                  example: password123
+                name:
+                  type: string
+                  example: Yayasan Peduli
+                role:
+                  type: string
+                  enum:
+                    - FOUNDATION
+                    - PEMDA
+                    - ADMIN
+                    - DONOR
+                  example: FOUNDATION
+                bankName:
+                  type: string
+                  example: BCA
+                bankAccountNo:
+                  type: string
+                  example: "1234567890"
+                bankHolder:
+                  type: string
+                  example: Yayasan Peduli
+      responses:
+        "200":
+          description: Berhasil
+        "400":
+          description: Gagal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/auth/login:
+    post:
+      tags:
+        - Auth
+      summary: Login, mengembalikan JWT
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  example: yayasan@nextrust.id
+                password:
+                  type: string
+                  example: password123
+      responses:
+        "200":
+          description: Token JWT
+        "401":
+          description: Kredensial salah
+  /api/webhooks/midtrans:
+    post:
+      tags:
+        - Donasi
+      summary: Webhook Midtrans untuk update status donasi
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Payload dari Midtrans
+      responses:
+        "200":
+          description: OK
+  /api/rabs:
+    post:
+      tags:
+        - RAB
+      summary: Cek kewajaran RAB (gerbang sebelum campaign dibuat)
+      description: Backend menyimpan RAB, meneruskan ke AI evaluator, menyimpan
+        verdict. Saat ini penilaian masih MOCK (diganti API AI nanti).
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                campaignDraftId:
+                  type: string
+                  nullable: true
+                targetAmount:
+                  type: number
+                  example: 10000000
+                items:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                        example: Sumur bor
+                      qty:
+                        type: number
+                        example: 1
+                      unitPrice:
+                        type: number
+                        example: 5000000
+      responses:
+        "200":
+          description: Verdict RAB
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  rab:
+                    type: object
+                    properties:
+                      score:
+                        type: integer
+                        example: 100
+                      reasonable:
+                        type: boolean
+                        example: true
+                      notes:
+                        type: string
+                      source:
+                        type: string
+                        example: MOCK
+        "400":
+          description: RAB tidak valid
+  /api/rabs/{id}:
+    get:
+      tags:
+        - RAB
+      summary: Ambil hasil RAB check
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Detail RAB check
+        "404":
+          description: Tidak ditemukan
+  /api/system/health:
+    get:
+      tags:
+        - Health
+      summary: Status koneksi Smart Contract dan Oracle
+      responses:
+        "200":
+          description: OK
+  /api/campaigns/{id}/milestones/{index}/submissions:
+    post:
+      tags:
+        - Milestone
+      summary: Submit bukti milestone
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: index
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                proofUrl:
+                  type: string
+                description:
+                  type: string
+      responses:
+        "200":
+          description: OK
+  /api/campaigns/{id}/milestones/{index}/evaluations:
+    post:
+      tags:
+        - Milestone
+      summary: AI submit skor milestone
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: index
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                score:
+                  type: integer
+                  example: 85
+                nonce:
+                  type: integer
+                  example: 12345
+      responses:
+        "200":
+          description: OK
+  /api/campaigns/{id}/advances/releases:
+    post:
+      tags:
+        - Milestone
+      summary: Cairkan dana awal (DP)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+  /api/campaigns/{id}/milestones/{index}/releases:
+    post:
+      tags:
+        - Milestone
+      summary: Cairkan dana milestone (setelah skor valid)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: index
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: OK
+  /api/campaigns/{id}/resolutions:
+    post:
+      tags:
+        - Pemda
+      summary: Resolve frozen campaign
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                approve:
+                  type: boolean
+                  example: true
+      responses:
+        "200":
+          description: OK

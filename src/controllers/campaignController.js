@@ -1,84 +1,118 @@
-const contractService = require("../services/contractService");
-const oracleService = require("../services/oracleService");
-const campaignService = require("../services/campaignService");
-const donationService = require("../services/donationService");
-const milestoneService = require("../services/milestoneService");
+import contractService from "../services/contractService.js";
+import campaignService from "../services/campaignService.js";
+import donationService from "../services/donationService.js";
+import milestoneService from "../services/milestoneService.js";
 
-exports.health = async (req, res) => {
-  const status = await contractService.status();
-  res.json({ ok: true, oracleAddress: oracleService.oracleAddress, ...status });
-};
+export async function listCampaigns(req, res, next) {
+  try {
+    res.json({ ok: true, campaigns: await campaignService.list() });
+  } catch (error) {
+    next(error);
+  }
+}
 
-exports.listCampaigns = async (req, res) => {
-  res.json({ ok: true, campaigns: await campaignService.list() });
-};
+export async function getCampaignById(req, res, next) {
+  try {
+    res.json({ ok: true, campaign: await campaignService.getById(req.params.id) });
+  } catch (error) {
+    next(error);
+  }
+}
 
-exports.getCampaignById = async (req, res) => {
-  res.json({ ok: true, campaign: await campaignService.getById(req.params.id) });
-};
+export async function createCampaign(req, res, next) {
+  try {
+    const campaign = await campaignService.create({
+      ...req.body,
+      foundationId: req.user.userId,
+    });
+    res.json({ ok: true, campaign });
+  } catch (error) {
+    next(error);
+  }
+}
 
-exports.createCampaign = async (req, res) => {
-  const campaign = await campaignService.create({
-    ...req.body,
-    foundationId: req.user.userId,
-  });
-  res.json({ ok: true, campaign });
-};
+export async function donate(req, res, next) {
+  try {
+    const result = await donationService.initiate({
+      campaignId: req.params.id,
+      ...req.body,
+    });
+    res.json({ ok: true, ...result });
+  } catch (error) {
+    next(error);
+  }
+}
 
-exports.donate = async (req, res) => {
-  const result = await donationService.initiate({
-    campaignId: req.params.id,
-    ...req.body,
-  });
-  res.json({ ok: true, ...result });
-};
+export async function listDonations(req, res, next) {
+  try {
+    res.json({
+      ok: true,
+      donations: await donationService.listByCampaign(req.params.id),
+    });
+  } catch (error) {
+    next(error);
+  }
+}
 
-exports.listDonations = async (req, res) => {
-  res.json({
-    ok: true,
-    donations: await donationService.listByCampaign(req.params.id),
-  });
-};
+export async function submitMilestone(req, res, next) {
+  try {
+    const result = await milestoneService.submit({
+      campaignId: req.params.id,
+      index: Number(req.params.index),
+      ...req.body,
+    });
+    res.json({ ok: true, milestone: result });
+  } catch (error) {
+    next(error);
+  }
+}
 
-exports.submitMilestone = async (req, res) => {
-  const result = await milestoneService.submit({
-    campaignId: req.params.id,
-    index: Number(req.params.index),
-    ...req.body,
-  });
-  res.json({ ok: true, milestone: result });
-};
+export async function scoreMilestone(req, res, next) {
+  try {
+    const result = await milestoneService.submitScore({
+      campaignId: req.params.id,
+      index: Number(req.params.index),
+      score: req.body.score,
+      nonce: req.body.nonce,
+    });
+    res.json({ ok: true, milestone: result });
+  } catch (error) {
+    next(error);
+  }
+}
 
-exports.scoreMilestone = async (req, res) => {
-  const result = await milestoneService.submitScore({
-    campaignId: req.params.id,
-    index: Number(req.params.index),
-    score: req.body.score,
-    nonce: req.body.nonce,
-  });
-  res.json({ ok: true, milestone: result });
-};
+export async function releaseAdvance(req, res, next) {
+  try {
+    res.json({
+      ok: true,
+      ...(await milestoneService.releaseAdvance(req.params.id)),
+    });
+  } catch (error) {
+    next(error);
+  }
+}
 
-exports.releaseAdvance = async (req, res) => {
-  res.json({
-    ok: true,
-    ...(await milestoneService.releaseAdvance(req.params.id)),
-  });
-};
+export async function releaseMilestone(req, res, next) {
+  try {
+    const result = await milestoneService.release({
+      campaignId: req.params.id,
+      index: Number(req.params.index),
+    });
+    res.json({ ok: true, milestone: result });
+  } catch (error) {
+    next(error);
+  }
+}
 
-exports.releaseMilestone = async (req, res) => {
-  const result = await milestoneService.release({
-    campaignId: req.params.id,
-    index: Number(req.params.index),
-  });
-  res.json({ ok: true, milestone: result });
-};
-
-exports.resolveFrozen = async (req, res) => {
-  const campaign = await campaignService.getById(req.params.id);
-  const result = await contractService.resolveFrozen({
-    campaignIdStr: campaign.onChainId,
-    approve: req.body.approve === true,
-  });
-  res.json({ ok: true, ...result });
-};
+export async function resolveFrozen(req, res, next) {
+  try {
+    const campaign = await campaignService.getById(req.params.id);
+    const result = await contractService.resolveFrozen({
+      campaignIdStr: campaign.onChainId,
+      approve: req.body.approve === true,
+    });
+    res.json({ ok: true, ...result });
+  } catch (error) {
+    next(error);
+  }
+}

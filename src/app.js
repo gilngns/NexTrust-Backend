@@ -1,35 +1,40 @@
-const express = require("express");
-const helmet = require("helmet");
-const cors = require("cors");
-const rateLimit = require("express-rate-limit");
-const swaggerUi = require("swagger-ui-express");
-const swaggerSpec = require("./config/swagger");
-const apiRoutes = require("./routes");
-const errorHandler = require("./middleware/errorHandler");
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+import yaml from "yaml";
+
+import express from "express";
+import helmet from "helmet";
+import cors from "cors";
+import swaggerUi from "swagger-ui-express";
+
+import apiRoutes from "./routes/index.js";
+import errorHandler from "./middleware/errorHandler.js";
+import limiter from "./config/limiter.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const swaggerFile = fs.readFileSync(path.join(__dirname, "../swagger.yaml"), "utf8");
+const swaggerSpec = yaml.parse(swaggerFile);
 
 const app = express();
 
 app.use(helmet());
 app.use(cors());
-
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
-  standardHeaders: true,
-  legacyHeaders: false,
-});
+app.use(express.json());
 app.use(limiter);
 
-app.use(express.json());
-
 app.get("/", (req, res) => {
-  res.json({ service: "NexTrust Backend", status: "running", docs: "/api-docs" });
+  res.json({
+    service: "NexTrust Backend",
+    status: "running",
+    docs: "/api-docs"
+  });
 });
 
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-
 app.use("/api", apiRoutes);
 
 app.use(errorHandler);
 
-module.exports = app;
+export default app;
