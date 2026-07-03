@@ -13,7 +13,10 @@ export async function listCampaigns(req, res, next) {
 
 export async function getCampaignById(req, res, next) {
   try {
-    res.json({ ok: true, campaign: await campaignService.getById(req.params.id) });
+    res.json({
+      ok: true,
+      campaign: await campaignService.getById(req.params.id),
+    });
   } catch (error) {
     next(error);
   }

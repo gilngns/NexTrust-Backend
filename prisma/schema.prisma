@@ -160,3 +160,18 @@ model Payout {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+model RabCheck {
+  id              String   @id @default(cuid())
+  campaignDraftId String?
+
+  items        String 
+  totalAmount  BigInt
+  targetAmount BigInt
+
+  score      Int
+  reasonable Boolean
+  notes      String?
+
+  createdAt DateTime @default(now())
+}

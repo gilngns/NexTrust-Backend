@@ -11,7 +11,9 @@ const validate = (schema) => (req, res, next) => {
     next();
   } catch (err) {
     if (err instanceof ZodError) {
-      const errorMessage = err.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join(", ");
+      const errorMessage = err.errors
+        .map((e) => `${e.path.join(".")}: ${e.message}`)
+        .join(", ");
       return next(AppError.badRequest());
     }
     next(err);

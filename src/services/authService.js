@@ -1,10 +1,10 @@
-import jwt from 'jsonwebtoken';
-import { promisify } from 'util';
-import AppError from '../utils/AppError.js';
-import bcrypt from 'bcrypt';
-import prisma from '../config/prisma.js';
-import config from '../config/index.js';
-import walletService from './walletService.js';
+import jwt from "jsonwebtoken";
+import { promisify } from "util";
+import AppError from "../utils/AppError.js";
+import bcrypt from "bcryptjs";
+import prisma from "../config/prisma.js";
+import config from "../config/index.js";
+import walletService from "./walletService.js";
 
 const signAsync = promisify(jwt.sign);
 const verifyAsync = promisify(jwt.verify);
@@ -63,7 +63,7 @@ async function login({ email, password }) {
   const token = await signAsync(
     { userId: user.id, role: user.role },
     config.jwtSecret,
-    { expiresIn: config.jwtExpiresIn }
+    { expiresIn: config.jwtExpiresIn },
   );
   return { token, user: await _sanitize(user) };
 }

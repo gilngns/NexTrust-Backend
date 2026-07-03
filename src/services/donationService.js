@@ -1,10 +1,10 @@
-import { ethers } from 'ethers';
-import AppError from '../utils/AppError.js';
-import prisma from '../config/prisma.js';
-import midtransService from './midtransService.js';
-import tokenService from './tokenService.js';
-import contractService from './contractService.js';
-import walletService from './walletService.js';
+import { ethers } from "ethers";
+import AppError from "../utils/AppError.js";
+import prisma from "../config/prisma.js";
+import midtransService from "./midtransService.js";
+import tokenService from "./tokenService.js";
+import contractService from "./contractService.js";
+import walletService from "./walletService.js";
 
 const XIDR_DECIMALS = 6;
 
@@ -19,10 +19,7 @@ async function initiate({ campaignId, donorName, amountRupiah }) {
   const orderId = `NEXTRUST-${campaign.onChainId}-${Date.now()}`;
   const qris = await midtransService.createQris(orderId, amountRupiah);
 
-  const amountToken = ethers.parseUnits(
-    amountRupiah.toString(),
-    XIDR_DECIMALS
-  );
+  const amountToken = ethers.parseUnits(amountRupiah.toString(), XIDR_DECIMALS);
 
   const donation = await prisma.donation.create({
     data: {
@@ -42,7 +39,7 @@ async function initiate({ campaignId, donorName, amountRupiah }) {
     qrisUrl: qris.qrisUrl,
     amountRupiah,
   };
-};
+}
 
 async function handleWebhook(notification) {
   if (!(await midtransService.verifySignature(notification))) {
@@ -92,7 +89,7 @@ async function handleWebhook(notification) {
   });
 
   return { status: "DEPOSITED", txHash: dep.txHash };
-};
+}
 
 async function listByCampaign(campaignId) {
   const donations = await prisma.donation.findMany({
@@ -100,6 +97,6 @@ async function listByCampaign(campaignId) {
     orderBy: { createdAt: "desc" },
   });
   return donations.map((d) => ({ ...d, amount: d.amount.toString() }));
-};
+}
 
 export default { initiate, handleWebhook, listByCampaign };

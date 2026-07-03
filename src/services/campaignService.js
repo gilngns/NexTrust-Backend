@@ -1,6 +1,6 @@
-import prisma from '../config/prisma.js';
-import AppError from '../utils/AppError.js';
-import contractService from './contractService.js';
+import prisma from "../config/prisma.js";
+import AppError from "../utils/AppError.js";
+import contractService from "./contractService.js";
 
 async function _serialize(campaign) {
   const out = { ...campaign };
@@ -14,7 +14,7 @@ async function _serialize(campaign) {
     }));
   }
   return out;
-};
+}
 
 const create = async ({
   onChainId,
@@ -28,7 +28,6 @@ const create = async ({
   totalMilestones,
   foundationId,
 }) => {
-
   const foundation = await prisma.user.findUnique({
     where: { id: foundationId },
   });
@@ -82,7 +81,7 @@ async function list() {
     include: { foundation: { select: { name: true } } },
   });
   return await Promise.all(campaigns.map(async (c) => await _serialize(c)));
-};
+}
 
 async function getById(id) {
   const campaign = await prisma.campaign.findUnique({
@@ -109,6 +108,6 @@ async function getById(id) {
     onChainState: onChainState !== null ? Number(onChainState) : null,
     lockedFunds,
   };
-};
+}
 
 export default { create, list, getById };

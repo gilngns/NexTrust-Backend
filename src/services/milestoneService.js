@@ -1,8 +1,8 @@
-import { ethers } from 'ethers';
-import AppError from '../utils/AppError.js';
-import prisma from '../config/prisma.js';
-import contractService from './contractService.js';
-import oracleService from './oracleService.js';
+import { ethers } from "ethers";
+import AppError from "../utils/AppError.js";
+import prisma from "../config/prisma.js";
+import contractService from "./contractService.js";
+import oracleService from "./oracleService.js";
 
 const APPROVE_THRESHOLD = 85;
 
@@ -34,7 +34,7 @@ async function submit({ campaignId, index, evidenceCID, metadataHash, title }) {
   });
 
   return { ...milestone, txHash: onchain.txHash };
-};
+}
 
 async function submitScore({ campaignId, index, score, nonce }) {
   const campaign = await prisma.campaign.findUnique({
@@ -45,7 +45,7 @@ async function submitScore({ campaignId, index, score, nonce }) {
   const onchain = await oracleService.submitScore(
     campaign.onChainId,
     score,
-    nonce
+    nonce,
   );
 
   const status = score >= APPROVE_THRESHOLD ? "APPROVED" : "REJECTED";
@@ -55,7 +55,7 @@ async function submitScore({ campaignId, index, score, nonce }) {
   });
 
   return { ...milestone, txHash: onchain.txHash, decision: status };
-};
+}
 
 async function releaseAdvance(campaignId) {
   const campaign = await prisma.campaign.findUnique({
@@ -69,7 +69,7 @@ async function releaseAdvance(campaignId) {
     data: { status: "ADVANCE_PAID" },
   });
   return { txHash: onchain.txHash };
-};
+}
 
 async function release({ campaignId, index }) {
   const campaign = await prisma.campaign.findUnique({
@@ -83,6 +83,6 @@ async function release({ campaignId, index }) {
     data: { status: "RELEASED", txHashRelease: onchain.txHash },
   });
   return { ...milestone, txHash: onchain.txHash };
-};
+}
 
 export default { submit, submitScore, releaseAdvance, release };

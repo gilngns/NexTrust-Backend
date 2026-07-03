@@ -1,5 +1,5 @@
-import prisma from '../config/prisma.js';
-import AppError from '../utils/AppError.js';
+import prisma from "../config/prisma.js";
+import AppError from "../utils/AppError.js";
 
 async function evaluateWithAI({ items, total, targetAmount }) {
   const target = Number(targetAmount || 0);
@@ -9,13 +9,13 @@ async function evaluateWithAI({ items, total, targetAmount }) {
   if (target > 0 && total > target * 1.1) {
     score -= 40;
     notes.push(
-      `Total RAB (${total}) melebihi target (${target}) lebih dari 10%.`
+      `Total RAB (${total}) melebihi target (${target}) lebih dari 10%.`,
     );
   }
   if (target > 0 && total < target * 0.5) {
     score -= 15;
     notes.push(
-      `Total RAB (${total}) jauh di bawah target — rincian mungkin kurang lengkap.`
+      `Total RAB (${total}) jauh di bawah target — rincian mungkin kurang lengkap.`,
     );
   }
   for (const it of items) {
@@ -44,7 +44,7 @@ async function check({ items, targetAmount, campaignDraftId }) {
 
   const total = items.reduce(
     (sum, it) => sum + Number(it.qty) * Number(it.unitPrice),
-    0
+    0,
   );
 
   const verdict = await evaluateWithAI({ items, total, targetAmount });

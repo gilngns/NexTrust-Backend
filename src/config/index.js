@@ -2,12 +2,27 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
+const isProd = process.env.NODE_ENV === "production";
+
 function required(name) {
   const v = process.env[name];
   if (!v) {
     throw new Error(
-      `Environment variable ${name} belum diset. Cek file .env kamu.`
+      `Environment variable ${name} belum diset. Cek file .env kamu.`,
     );
+  }
+  return v;
+}
+
+function requiredInProd(name, devFallback) {
+  const v = process.env[name];
+  if (!v) {
+    if (isProd) {
+      throw new Error(
+        `Environment variable ${name} WAJIB diisi di production.`,
+      );
+    }
+    return devFallback;
   }
   return v;
 }
@@ -18,11 +33,13 @@ const config = {
 
   databaseUrl: process.env.DATABASE_URL || "",
 
-  jwtSecret: process.env.JWT_SECRET || "dev-secret-ganti-di-produksi",
+  jwtSecret: requiredInProd("JWT_SECRET", "dev-secret-ganti-di-produksi"),
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || "15m",
 
-  walletEncryptionSecret:
-    process.env.WALLET_ENCRYPTION_SECRET || "dev-wallet-secret-ganti",
+  walletEncryptionSecret: requiredInProd(
+    "WALLET_ENCRYPTION_SECRET",
+    "dev-wallet-secret-ganti",
+  ),
 
   chain: {
     rpcUrl: process.env.AMOY_RPC_URL || "https://rpc-amoy.polygon.technology",

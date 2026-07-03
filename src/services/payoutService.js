@@ -1,6 +1,6 @@
-import { ethers } from 'ethers';
-import AppError from '../utils/AppError.js';
-import prisma from '../config/prisma.js';
+import { ethers } from "ethers";
+import AppError from "../utils/AppError.js";
+import prisma from "../config/prisma.js";
 
 const XIDR_DECIMALS = 6;
 
@@ -18,7 +18,7 @@ async function _serialize(payout, foundation) {
     payoutRef: payout.payoutRef,
     note: payout.note,
   };
-};
+}
 
 async function request({ campaignId, amount }) {
   const campaign = await prisma.campaign.findUnique({
@@ -45,7 +45,7 @@ async function request({ campaignId, amount }) {
   });
 
   return await _serialize(payout, foundation);
-};
+}
 
 async function process(payoutId) {
   const payout = await prisma.payout.findUnique({
@@ -69,7 +69,7 @@ async function process(payoutId) {
   });
 
   return await _serialize(updated, updated.foundation);
-};
+}
 
 async function listByCampaign(campaignId) {
   const payouts = await prisma.payout.findMany({
@@ -77,6 +77,6 @@ async function listByCampaign(campaignId) {
     orderBy: { createdAt: "desc" },
   });
   return payouts.map((p) => ({ ...p, amount: p.amount.toString() }));
-};
+}
 
 export default { request, process, listByCampaign };

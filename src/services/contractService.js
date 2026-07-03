@@ -1,27 +1,32 @@
-import { ethers } from 'ethers';
-import config from '../config/index.js';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import { ethers } from "ethers";
+import config from "../config/index.js";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const escrowAbi = JSON.parse(fs.readFileSync(path.join(__dirname, '../../abi/TrustFundEscrow.json'), 'utf8'));
+const escrowAbi = JSON.parse(
+  fs.readFileSync(
+    path.join(__dirname, "../../abi/TrustFundEscrow.json"),
+    "utf8",
+  ),
+);
 
 const provider = new ethers.JsonRpcProvider(config.chain.rpcUrl);
 const backendWallet = new ethers.Wallet(
   config.chain.backendPrivateKey,
-  provider
+  provider,
 );
 const escrow = new ethers.Contract(
   config.chain.escrowAddress,
   escrowAbi,
-  backendWallet
+  backendWallet,
 );
 
 async function toCampaignId(str) {
   return ethers.id(str);
-};
+}
 
 async function status() {
   const [network, blockNumber, balance] = await Promise.all([
@@ -36,18 +41,16 @@ async function status() {
     backendBalancePOL: ethers.formatEther(balance),
     escrowAddress: config.chain.escrowAddress,
   };
-};
+}
 
 async function getCampaignState(campaignIdStr) {
   return await escrow.getCampaignState(await toCampaignId(campaignIdStr));
-};
+}
 
 async function getLockedFunds(campaignIdStr) {
-  const locked = await escrow.getLockedFunds(
-    await toCampaignId(campaignIdStr)
-  );
+  const locked = await escrow.getLockedFunds(await toCampaignId(campaignIdStr));
   return locked.toString();
-};
+}
 
 async function getCampaign(campaignIdStr) {
   const c = await escrow.getCampaign(await toCampaignId(campaignIdStr));
@@ -64,7 +67,7 @@ async function getCampaign(campaignIdStr) {
     advanceReleased: c.advanceReleased,
     beneficiary: c.beneficiary,
   };
-};
+}
 
 const createCampaign = async ({
   campaignIdStr,
@@ -83,7 +86,7 @@ const createCampaign = async ({
     milestoneAmount,
     totalMilestones,
     rabCID,
-    beneficiary
+    beneficiary,
   );
   const receipt = await tx.wait();
   return { txHash: receipt.hash, campaignId: id };
@@ -94,44 +97,40 @@ async function depositXIDR({ campaignIdStr, amount, donorAddress }) {
   const tx = await escrow.depositXIDR(id, amount, donorAddress);
   const receipt = await tx.wait();
   return { txHash: receipt.hash };
-};
+}
 
 async function releaseAdvance(campaignIdStr) {
-  const tx = await escrow.releaseAdvance(
-    await toCampaignId(campaignIdStr)
-  );
+  const tx = await escrow.releaseAdvance(await toCampaignId(campaignIdStr));
   const receipt = await tx.wait();
   return { txHash: receipt.hash };
-};
+}
 
 async function submitMilestone({ campaignIdStr, evidenceCID, metadataHash }) {
   const id = await toCampaignId(campaignIdStr);
   const tx = await escrow.submitMilestone(id, evidenceCID, metadataHash);
   const receipt = await tx.wait();
   return { txHash: receipt.hash };
-};
+}
 
 async function releaseMilestone(campaignIdStr) {
-  const tx = await escrow.releaseMilestone(
-    await toCampaignId(campaignIdStr)
-  );
+  const tx = await escrow.releaseMilestone(await toCampaignId(campaignIdStr));
   const receipt = await tx.wait();
   return { txHash: receipt.hash };
-};
+}
 
 async function resolveFrozen({ campaignIdStr, approve }) {
   const id = await toCampaignId(campaignIdStr);
   const tx = await escrow.resolveFrozen(id, approve);
   const receipt = await tx.wait();
   return { txHash: receipt.hash };
-};
+}
 
 async function claimRefund({ campaignIdStr, donorSigner }) {
   const id = await toCampaignId(campaignIdStr);
   const tx = await escrow.claimRefund(id);
   const receipt = await tx.wait();
   return { txHash: receipt.hash };
-};
+}
 
 export default {
   status,

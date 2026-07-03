@@ -8,12 +8,25 @@ class AppError extends Error {
     Error.captureStackTrace(this, this.constructor);
   }
 
-  static badRequest(msg) { return AppError.badRequest(); }
-  static unauthorized(msg) { return AppError.unauthorized(); }
-  static forbidden(msg) { return AppError.forbidden(); }
-  static notFound(msg) { return AppError.notFound(); }
-  static internal(msg) { return AppError.internal(); }
-  static badGateway(msg) { return AppError.badGateway(); }
+  // Tiap helper membuat instance AppError baru dengan status code yang sesuai.
+  static badRequest(msg = "Bad Request") {
+    return new AppError(msg, 400);
+  }
+  static unauthorized(msg = "Unauthorized") {
+    return new AppError(msg, 401);
+  }
+  static forbidden(msg = "Forbidden") {
+    return new AppError(msg, 403);
+  }
+  static notFound(msg = "Not Found") {
+    return new AppError(msg, 404);
+  }
+  static internal(msg = "Internal Server Error") {
+    return new AppError(msg, 500);
+  }
+  static badGateway(msg = "Bad Gateway") {
+    return new AppError(msg, 502);
+  }
 }
 
 export default AppError;
