@@ -11,10 +11,11 @@ const validate = (schema) => (req, res, next) => {
     next();
   } catch (err) {
     if (err instanceof ZodError) {
-      const errorMessage = err.errors
+      const issues = err.issues || err.errors || [];
+      const errorMessage = issues
         .map((e) => `${e.path.join(".")}: ${e.message}`)
         .join(", ");
-      return next(AppError.badRequest());
+      return next(AppError.badRequest(errorMessage || "Validasi gagal"));
     }
     next(err);
   }
