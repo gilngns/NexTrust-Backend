@@ -1,0 +1,3 @@
+ALTER TABLE "User" ADD COLUMN "skKemenkumham" TEXT;
+ALTER TABLE "User" ADD COLUMN "izinPub" TEXT;
+ALTER TABLE "User" ADD COLUMN "isVerified" BOOLEAN NOT NULL DEFAULT false;
