@@ -1,6 +1,5 @@
 import { jest } from "@jest/globals";
 
-// Mocks
 jest.unstable_mockModule("bcryptjs", () => ({
   default: {
     hash: jest.fn(),
@@ -63,16 +62,16 @@ describe("authService", () => {
         address: "0x123",
         encryptedKey: "enc-key-123",
       });
-      
-      const mockUser = {
+
+            const mockUser = {
         id: "user-123",
         ...validPayload,
         passwordHash: "hashed-password",
         custodialAddress: "0x123",
         encryptedKey: "enc-key-123",
       };
-      
-      prisma.user.create.mockResolvedValue(mockUser);
+
+            prisma.user.create.mockResolvedValue(mockUser);
 
       const result = await authService.register(validPayload);
 
@@ -80,8 +79,7 @@ describe("authService", () => {
       expect(bcrypt.hash).toHaveBeenCalledWith(validPayload.password, 10);
       expect(walletService.generate).toHaveBeenCalled();
       expect(prisma.user.create).toHaveBeenCalled();
-      
-      // Ensure sanitize works
+
       expect(result).not.toHaveProperty("passwordHash");
       expect(result).not.toHaveProperty("encryptedKey");
       expect(result.id).toBe("user-123");
@@ -106,13 +104,10 @@ describe("authService", () => {
         role: "FOUNDATION",
         encryptedKey: "enc-key",
       };
-      
-      prisma.user.findUnique.mockResolvedValue(mockUser);
+
+            prisma.user.findUnique.mockResolvedValue(mockUser);
       bcrypt.compare.mockResolvedValue(true);
-      
-      // Mock util.promisify(jwt.sign) is tricky, but jwt.sign takes a callback if not promisified.
-      // Wait, in authService.js: const signAsync = promisify(jwt.sign);
-      // To mock promisify on jwt.sign, we actually just mock jwt.sign to call the callback.
+
       jwt.sign.mockImplementation((payload, secret, options, callback) => {
         callback(null, "fake-jwt-token");
       });
@@ -122,8 +117,8 @@ describe("authService", () => {
       expect(prisma.user.findUnique).toHaveBeenCalledWith({ where: { email: loginPayload.email } });
       expect(bcrypt.compare).toHaveBeenCalledWith(loginPayload.password, "hashed-password");
       expect(jwt.sign).toHaveBeenCalled();
-      
-      expect(result).toHaveProperty("token", "fake-jwt-token");
+
+            expect(result).toHaveProperty("token", "fake-jwt-token");
       expect(result.user).not.toHaveProperty("passwordHash");
       expect(result.user).not.toHaveProperty("encryptedKey");
       expect(result.user.id).toBe("user-123");

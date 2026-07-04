@@ -8,7 +8,6 @@ class AppError extends Error {
     Error.captureStackTrace(this, this.constructor);
   }
 
-  // Tiap helper membuat instance AppError baru dengan status code yang sesuai.
   static badRequest(msg = "Bad Request") {
     return new AppError(msg, 400);
   }

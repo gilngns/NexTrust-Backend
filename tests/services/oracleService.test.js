@@ -46,8 +46,8 @@ describe("oracleService", () => {
   describe("submitScore", () => {
     it("should submit score on-chain", async () => {
       const res = await oracleService.submitScore("camp-1", 90, 1);
-      
-      expect(ethers.id).toHaveBeenCalledWith("camp-1");
+
+            expect(ethers.id).toHaveBeenCalledWith("camp-1");
       expect(res.txHash).toBe("0xCallbackHash");
       expect(res.score).toBe(90);
     });

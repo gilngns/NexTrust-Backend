@@ -85,8 +85,8 @@ describe("payoutService", () => {
       });
 
       const res = await payoutService.process("pay-1");
-      
-      expect(prisma.payout.update).toHaveBeenCalled();
+
+            expect(prisma.payout.update).toHaveBeenCalled();
       expect(res.status).toBe("COMPLETED");
       expect(res.payoutRef).toBe("SIM-123");
     });

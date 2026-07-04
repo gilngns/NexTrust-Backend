@@ -1,6 +1,5 @@
 import { jest } from "@jest/globals";
 
-// Mock dependencies
 jest.unstable_mockModule("../../src/config/prisma.js", () => ({
   default: {
     user: {
@@ -44,7 +43,6 @@ describe("campaignService", () => {
     };
 
     it("should create a campaign successfully", async () => {
-      // Setup mocks
       prisma.user.findUnique.mockResolvedValue({
         id: "user-123",
         custodialAddress: "0x123",
@@ -66,17 +64,14 @@ describe("campaignService", () => {
         txHashCreate: "0xabc",
         donations: [],
       };
-      
-      prisma.campaign.create.mockResolvedValue(mockCampaign);
 
-      // Execute
+            prisma.campaign.create.mockResolvedValue(mockCampaign);
+
       const result = await campaignService.create(validPayload);
 
-      // Assert
       expect(prisma.user.findUnique).toHaveBeenCalledWith({
         where: { id: "user-123" },
       });
-      // milestoneTotal = target - advance = 900000, dibagi 2 -> [360000, 540000]
       expect(contractService.createCampaign).toHaveBeenCalledWith({
         campaignIdStr: validPayload.onChainId,
         targetAmount: BigInt(validPayload.targetAmount),
@@ -86,8 +81,7 @@ describe("campaignService", () => {
         beneficiary: "0x123",
       });
       expect(prisma.campaign.create).toHaveBeenCalled();
-      
-      // Values are serialized to string
+
       expect(result.targetAmount).toBe("1000000");
     });
 
@@ -95,7 +89,7 @@ describe("campaignService", () => {
       prisma.user.findUnique.mockResolvedValue(null);
 
       await expect(campaignService.create(validPayload)).rejects.toThrow(
-        "Not Found" // AppError.notFound() message
+        "Not Found" 
       );
     });
 
@@ -106,7 +100,7 @@ describe("campaignService", () => {
       });
 
       await expect(campaignService.create(validPayload)).rejects.toThrow(
-        "Bad Request" // AppError.badRequest() message
+        "Bad Request" 
       );
     });
   });

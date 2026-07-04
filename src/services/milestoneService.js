@@ -5,26 +5,17 @@ import contractService from "./contractService.js";
 import oracleService from "./oracleService.js";
 import { calculateDistance } from "../utils/haversine.js";
 
-// Ambang selaras dengan kontrak (oracleCallback):
-//   score >= 85          -> VALIDATED  (lolos otomatis)
-//   50 <= score <= 84    -> FROZEN     (abu-abu, wajib review Dinsos)
-//   score < 50           -> FROZEN + refund enabled (gagal)
 const APPROVE_THRESHOLD = 85;
 const REVIEW_THRESHOLD = 50;
 
-// Toleransi lokasi (md §8.1): radius wajar ~200 m.
 const MAX_DISTANCE_METERS = 200;
 
-// Memetakan skor AI ke status milestone di DB agar konsisten dengan
-// keputusan on-chain. Kasus abu-abu TIDAK ditolak mentah, melainkan
-// naik ke Dinsos (status EVALUATING) — prinsip "AI menilai, Dinsos memutuskan".
 function scoreToStatus(score) {
   if (score >= APPROVE_THRESHOLD) return "APPROVED";
-  if (score >= REVIEW_THRESHOLD) return "EVALUATING"; // abu-abu -> review Dinsos
-  return "REJECTED"; // gagal -> refund
+  if (score >= REVIEW_THRESHOLD) return "EVALUATING"; 
+  return "REJECTED"; 
 }
 
-// Batas percobaan submit ulang sebelum eskalasi wajib ke Dinsos (md §8.2).
 const MAX_SUBMIT_ATTEMPTS = 3;
 
 async function submit({ campaignId, index, evidenceCID, metadataHash, title, latitude, longitude }) {
@@ -41,16 +32,13 @@ async function submit({ campaignId, index, evidenceCID, metadataHash, title, lat
 
   let status = "SUBMITTED";
 
-  // Toleransi lokasi (md §8.1): di luar radius wajar -> flag review, bukan tolak.
   if (campaign.latitude && campaign.longitude && latitude && longitude) {
     const distance = calculateDistance(campaign.latitude, campaign.longitude, latitude, longitude);
     if (distance > MAX_DISTANCE_METERS) {
-      status = "EVALUATING"; // GPS terlalu jauh -> naik review Dinsos
+      status = "EVALUATING"; 
     }
   }
 
-  // Fallback §8.2: bila sudah mencapai batas percobaan, submit tetap diterima
-  // tapi WAJIB review Dinsos (bukan celah pintas, bukan reject mentah).
   if (attempts >= MAX_SUBMIT_ATTEMPTS) {
     status = "EVALUATING";
   }

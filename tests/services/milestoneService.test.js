@@ -84,7 +84,7 @@ describe("milestoneService", () => {
         campaignId: "camp-1",
         index: 0,
         evidenceCID: "cid",
-        latitude: -6.5, // Far away
+        latitude: -6.5, 
         longitude: 106.8
       });
 
@@ -96,7 +96,6 @@ describe("milestoneService", () => {
     });
 
     it("should escalate to Dinsos review after max submit attempts", async () => {
-      // Sudah 2x gagal sebelumnya -> submit ke-3 wajib review (fallback §8.2).
       prisma.campaign.findUnique.mockResolvedValue({ id: "camp-1", onChainId: "chain-1", latitude: -6.2, longitude: 106.8 });
       prisma.milestone.findUnique.mockResolvedValue({ submitAttempts: 2 });
       contractService.submitMilestone.mockResolvedValue({ txHash: "0xSubmitHash" });
@@ -106,7 +105,7 @@ describe("milestoneService", () => {
         campaignId: "camp-1",
         index: 0,
         evidenceCID: "cid",
-        latitude: -6.2001, // lokasi dekat (dalam radius) — tetap eskalasi krn attempts
+        latitude: -6.2001, 
         longitude: 106.8001
       });
 
@@ -151,7 +150,6 @@ describe("milestoneService", () => {
         nonce: 1,
       });
 
-      // Abu-abu TIDAK ditolak mentah; naik ke Dinsos (selaras kontrak: FROZEN).
       expect(prisma.milestone.update).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({ status: "EVALUATING", aiScore: 80 }),

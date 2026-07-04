@@ -3,8 +3,7 @@ import AppError from "../utils/AppError.js";
 
 async function evaluateWithAI({ items, total, targetAmount }) {
   const target = Number(targetAmount || 0);
-  
-  // Relay to Python AI Microservice
+
   const aiUrl = process.env.AI_SERVICE_URL || "http://localhost:8000";
   try {
     const res = await fetch(`${aiUrl}/evaluate-rab`, {
@@ -12,8 +11,8 @@ async function evaluateWithAI({ items, total, targetAmount }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ items, total, targetAmount: target }),
     });
-    
-    if (res.ok) {
+
+        if (res.ok) {
       const data = await res.json();
       return {
         score: data.score,
@@ -26,7 +25,6 @@ async function evaluateWithAI({ items, total, targetAmount }) {
     console.warn("AI Microservice unreachable, falling back to mock logic", error.message);
   }
 
-  // Fallback Mock Logic
   const notes = [];
   let score = 100;
 

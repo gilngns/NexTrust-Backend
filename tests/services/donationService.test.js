@@ -1,6 +1,5 @@
 import { jest } from "@jest/globals";
 
-// Mocks
 jest.unstable_mockModule("ethers", () => ({
   ethers: {
     parseUnits: jest.fn(),
@@ -118,7 +117,7 @@ describe("donationService", () => {
       expect(result.txHash).toBe("0xHash");
       expect(tokenService.mint).toHaveBeenCalled();
       expect(contractService.depositXIDR).toHaveBeenCalled();
-      expect(prisma.donation.update).toHaveBeenCalledTimes(2); // PAID then DEPOSITED
+      expect(prisma.donation.update).toHaveBeenCalledTimes(2); 
     });
   });
 
@@ -130,7 +129,7 @@ describe("donationService", () => {
 
       const result = await donationService.listByCampaign("camp-1");
       expect(prisma.donation.findMany).toHaveBeenCalled();
-      expect(result[0].amount).toBe("1000"); // serialized
+      expect(result[0].amount).toBe("1000"); 
     });
   });
 });

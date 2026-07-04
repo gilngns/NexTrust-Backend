@@ -13,7 +13,6 @@ jest.unstable_mockModule("../../src/config/index.js", () => ({
 const midtransService = (await import("../../src/services/midtransService.js")).default;
 const config = (await import("../../src/config/index.js")).default;
 
-// Mock global fetch
 global.fetch = jest.fn();
 
 describe("midtransService", () => {

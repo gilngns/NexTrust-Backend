@@ -21,8 +21,8 @@ describe("rabService", () => {
   describe("check", () => {
     it("should evaluate RAB and store the result", async () => {
       const items = [{ name: "Semen", qty: 10, unitPrice: 50000 }];
-      
-      prisma.rabCheck.create.mockResolvedValue({
+
+            prisma.rabCheck.create.mockResolvedValue({
         id: "rab-1",
         items: JSON.stringify(items),
         totalAmount: BigInt(500000),
@@ -55,8 +55,8 @@ describe("rabService", () => {
       });
 
       const res = await rabService.getById("rab-1");
-      
-      expect(prisma.rabCheck.findUnique).toHaveBeenCalledWith({ where: { id: "rab-1" } });
+
+            expect(prisma.rabCheck.findUnique).toHaveBeenCalledWith({ where: { id: "rab-1" } });
       expect(res.items).toEqual([{ name: "Pasir" }]);
       expect(res.totalAmount).toBe("100000");
     });

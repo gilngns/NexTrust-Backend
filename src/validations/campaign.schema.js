@@ -10,10 +10,7 @@ export const createCampaignSchema = z.object({
       category: z.enum(["PEMBANGUNAN", "PENGADAAN_BARANG", "ALAT_KESEHATAN", "REKONSTRUKSI"]),
       onChainId: z.string(),
       advanceAmount: z.number().positive(),
-      // Opsional: porsi per-milestone dihitung otomatis (retensi progresif)
-      // dari targetAmount - advanceAmount. Field ini diabaikan bila dikirim.
       milestoneAmount: z.number().min(0).optional(),
-      // md §3.3 + kontrak: minimal 2, maksimal 6 milestone.
       totalMilestones: z
         .number()
         .int()
@@ -24,7 +21,6 @@ export const createCampaignSchema = z.object({
       latitude: z.number().optional(),
       longitude: z.number().optional(),
     })
-    // md §3.2 + kontrak: DP maksimal 15% dari target.
     .refine((b) => b.advanceAmount <= b.targetAmount * 0.15, {
       message: "DP (advanceAmount) maksimal 15% dari target",
       path: ["advanceAmount"],

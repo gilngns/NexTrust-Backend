@@ -21,7 +21,6 @@ describe("evaluateNominalTolerance", () => {
   });
 
   it("is more lenient when cheaper (asymmetry)", () => {
-    // 30% cheaper -> still REVIEW (not HOLD), thanks to CHEAPER_REVIEW_MAX
     const r = evaluateNominalTolerance(100, 70);
     expect(r.verdict).toBe("REVIEW");
     expect(r.direction).toBe("under");
@@ -37,21 +36,21 @@ describe("evaluateReceiptCompleteness", () => {
   it("PASS when only small items missing (<=15%)", () => {
     const r = evaluateReceiptCompleteness(1000, [
       { name: "a", value: 800, hasReceipt: true },
-      { name: "b", value: 100, hasReceipt: false }, // 10% -> ok
+      { name: "b", value: 100, hasReceipt: false }, 
     ]);
     expect(r.verdict).toBe("PASS");
   });
 
   it("HOLD when a big item (>30%) is missing", () => {
     const r = evaluateReceiptCompleteness(1000, [
-      { name: "a", value: 400, hasReceipt: false }, // 40%
+      { name: "a", value: 400, hasReceipt: false }, 
     ]);
     expect(r.verdict).toBe("HOLD");
   });
 
   it("REVIEW when a mid item (15-30%) is missing", () => {
     const r = evaluateReceiptCompleteness(1000, [
-      { name: "a", value: 250, hasReceipt: false }, // 25%
+      { name: "a", value: 250, hasReceipt: false }, 
     ]);
     expect(r.verdict).toBe("REVIEW");
   });

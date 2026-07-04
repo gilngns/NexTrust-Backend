@@ -1,6 +1,5 @@
 import { jest } from "@jest/globals";
 
-// Mock ethers before importing the service
 const mockContractInstance = {
   getCampaignState: jest.fn(),
   getLockedFunds: jest.fn(),
@@ -19,7 +18,7 @@ jest.unstable_mockModule("ethers", () => ({
     JsonRpcProvider: jest.fn().mockImplementation(() => ({
       getNetwork: jest.fn().mockResolvedValue({ chainId: 1337 }),
       getBlockNumber: jest.fn().mockResolvedValue(100),
-      getBalance: jest.fn().mockResolvedValue(BigInt(1000000000000000000)), // 1 ETH
+      getBalance: jest.fn().mockResolvedValue(BigInt(1000000000000000000)), 
     })),
     Wallet: jest.fn().mockImplementation(() => ({
       address: "0xBackendWallet",
@@ -58,7 +57,7 @@ describe("contractService", () => {
         campaignIdStr: "camp-1",
         targetAmount: BigInt(100),
         advanceAmount: BigInt(10),
-        milestoneAmounts: [BigInt(36), BigInt(54)], // array retensi progresif
+        milestoneAmounts: [BigInt(36), BigInt(54)], 
         rabCID: "cid",
         beneficiary: "0xBen",
       });
