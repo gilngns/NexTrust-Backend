@@ -3,14 +3,24 @@ import AppError from "../utils/AppError.js";
 import prisma from "../config/prisma.js";
 import contractService from "./contractService.js";
 import oracleService from "./oracleService.js";
+import { calculateDistance } from "../utils/haversine.js";
 
 const APPROVE_THRESHOLD = 85;
+const MAX_DISTANCE_METERS = 200;
 
-async function submit({ campaignId, index, evidenceCID, metadataHash, title }) {
+async function submit({ campaignId, index, evidenceCID, metadataHash, title, latitude, longitude }) {
   const campaign = await prisma.campaign.findUnique({
     where: { id: campaignId },
   });
   if (!campaign) throw AppError.notFound();
+
+  let status = "SUBMITTED";
+  if (campaign.latitude && campaign.longitude && latitude && longitude) {
+    const distance = calculateDistance(campaign.latitude, campaign.longitude, latitude, longitude);
+    if (distance > MAX_DISTANCE_METERS) {
+      status = "EVALUATING"; // Flagged for review because GPS is too far
+    }
+  }
 
   const hash =
     metadataHash ||
@@ -28,7 +38,9 @@ async function submit({ campaignId, index, evidenceCID, metadataHash, title }) {
       evidenceCID,
       metadataHash: hash,
       title: title || undefined,
-      status: "SUBMITTED",
+      latitude,
+      longitude,
+      status,
       txHashSubmit: onchain.txHash,
     },
   });

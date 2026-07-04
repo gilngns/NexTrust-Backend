@@ -5,7 +5,16 @@ export const createCampaignSchema = z.object({
     title: z.string().min(5, "Judul minimal 5 karakter"),
     description: z.string().min(10, "Deskripsi minimal 10 karakter"),
     targetAmount: z.number().positive("Target harus lebih besar dari 0"),
-    durationDays: z.number().int().positive("Durasi hari harus positif"),
+    durationDays: z.number().int().positive("Durasi hari harus positif").optional(),
+    category: z.enum(["PEMBANGUNAN", "PENGADAAN_BARANG", "ALAT_KESEHATAN", "REKONSTRUKSI"]),
+    onChainId: z.string(),
+    advanceAmount: z.number().positive(),
+    milestoneAmount: z.number().min(0),
+    totalMilestones: z.number().min(1),
+    rabCID: z.string().optional(),
+    imageUrl: z.string().optional(),
+    latitude: z.number().optional(),
+    longitude: z.number().optional(),
   }),
 });
 
@@ -22,8 +31,12 @@ export const donateSchema = z.object({
 
 export const submitMilestoneSchema = z.object({
   body: z.object({
-    proofUrl: z.string().url("Format URL bukti tidak valid"),
+    proofUrl: z.string().url("Format URL bukti tidak valid").optional(),
     description: z.string().min(5, "Deskripsi minimal 5 karakter"),
+    evidenceCID: z.string().optional(),
+    title: z.string().optional(),
+    latitude: z.number().optional(),
+    longitude: z.number().optional(),
   }),
 });
 

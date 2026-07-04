@@ -74,7 +74,7 @@ router.post(
 router.post(
   "/:id/resolutions",
   authenticate,
-  authorize("PEMDA", "ADMIN"),
+  authorize("DINSOS", "ADMIN"),
   validate(resolveFrozenSchema),
   asyncHandler(campaignController.resolveFrozen),
 );

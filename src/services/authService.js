@@ -22,6 +22,8 @@ async function register({
   bankName,
   bankAccountNo,
   bankHolder,
+  skKemenkumham,
+  izinPub,
 }) {
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) throw AppError.badRequest();
@@ -48,6 +50,8 @@ async function register({
       bankName: bankName || null,
       bankAccountNo: bankAccountNo || null,
       bankHolder: bankHolder || null,
+      skKemenkumham: skKemenkumham || null,
+      izinPub: izinPub || null,
     },
   });
   return await _sanitize(user);
@@ -72,4 +76,18 @@ async function verifyToken(token) {
   return await verifyAsync(token, config.jwtSecret);
 }
 
-export default { register, login, verifyToken };
+async function verifyFoundation(foundationId) {
+  const user = await prisma.user.findUnique({ where: { id: foundationId } });
+  if (!user || user.role !== "FOUNDATION") {
+    throw AppError.notFound("Yayasan tidak ditemukan");
+  }
+
+  const updated = await prisma.user.update({
+    where: { id: foundationId },
+    data: { isVerified: true },
+  });
+
+  return await _sanitize(updated);
+}
+
+export default { register, login, verifyToken, verifyFoundation };

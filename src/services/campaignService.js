@@ -21,12 +21,15 @@ const create = async ({
   title,
   description,
   imageUrl,
+  category,
   rabCID,
   targetAmount,
   advanceAmount,
   milestoneAmount,
   totalMilestones,
   foundationId,
+  latitude,
+  longitude,
 }) => {
   const foundation = await prisma.user.findUnique({
     where: { id: foundationId },
@@ -53,6 +56,7 @@ const create = async ({
       title,
       description,
       imageUrl,
+      category,
       rabCID,
       targetAmount: BigInt(targetAmount),
       advanceAmount: BigInt(advanceAmount),
@@ -60,6 +64,8 @@ const create = async ({
       totalMilestones,
       foundationId,
       beneficiary,
+      latitude,
+      longitude,
       status: "ACTIVE",
       txHashCreate: onchain.txHash,
       milestones: {
@@ -110,4 +116,29 @@ async function getById(id) {
   };
 }
 
-export default { create, list, getById };
+async function generateDraftPlan({ rabData, targetAmount }) {
+  const aiUrl = process.env.AI_SERVICE_URL || "http://localhost:8000";
+  try {
+    const res = await fetch(`${aiUrl}/plan-milestones`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ rabData, targetAmount }),
+    });
+
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (error) {
+    console.warn("AI Microservice unreachable, falling back to mock plan", error.message);
+  }
+
+  // Fallback Mock Logic
+  return {
+    advanceAmount: Math.floor(targetAmount * 0.15), // 15% DP
+    milestoneAmount: Math.floor(targetAmount * 0.60), // 60% for milestones
+    totalMilestones: 3, // Default 3 milestones
+    notes: "Draf dihasilkan dari mock fallback karena AI service tidak dapat dihubungi.",
+  };
+}
+
+export default { create, list, getById, generateDraftPlan };

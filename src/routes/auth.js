@@ -21,4 +21,13 @@ router.post(
   asyncHandler(authController.login),
 );
 
+import { authenticate, authorize } from "../middleware/auth.js";
+
+router.put(
+  "/verify-foundation/:id",
+  authenticate,
+  authorize("DINSOS"),
+  asyncHandler(authController.verifyFoundation)
+);
+
 export default router;

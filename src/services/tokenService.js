@@ -27,22 +27,22 @@ const token = new ethers.Contract(
 );
 
 async function owner() {
-  const decimals = await token.decimals();
-  return ethers.parseUnits(humanAmount.toString(), decimals);
-}
-
-async function backendIsOwner() {
   return await token.owner();
 }
 
-async function balanceOf(address) {
+async function backendIsOwner() {
   const contractOwner = await token.owner();
   return contractOwner.toLowerCase() === backendWallet.address.toLowerCase();
 }
 
-async function toUnits(humanAmount) {
+async function balanceOf(address) {
   const bal = await token.balanceOf(address);
   return bal.toString();
+}
+
+async function toUnits(humanAmount) {
+  const decimals = await token.decimals();
+  return ethers.parseUnits(humanAmount.toString(), decimals);
 }
 
 async function mint(toAddress, humanAmount) {

@@ -17,3 +17,12 @@ export async function login(req, res, next) {
     next(error);
   }
 }
+
+export async function verifyFoundation(req, res, next) {
+  try {
+    const user = await authService.verifyFoundation(req.params.id);
+    res.json({ ok: true, user });
+  } catch (error) {
+    next(error);
+  }
+}

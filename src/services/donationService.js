@@ -13,8 +13,7 @@ async function initiate({ campaignId, donorName, amountRupiah }) {
     where: { id: campaignId },
   });
   if (!campaign) throw AppError.notFound();
-
-  const donorWallet = walletService.generate();
+  const donorWallet = await walletService.generate();
 
   const orderId = `NEXTRUST-${campaign.onChainId}-${Date.now()}`;
   const qris = await midtransService.createQris(orderId, amountRupiah);

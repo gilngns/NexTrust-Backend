@@ -5,10 +5,12 @@ export const registerSchema = z.object({
     email: z.string().email("Format email tidak valid"),
     password: z.string().min(6, "Password minimal 6 karakter"),
     name: z.string().min(2, "Nama minimal 2 karakter"),
-    role: z.enum(["FOUNDATION", "PEMDA", "ADMIN", "DONOR"]),
+    role: z.enum(["FOUNDATION", "DINSOS", "ADMIN", "DONOR"]),
     bankName: z.string().optional(),
     bankAccountNo: z.string().optional(),
     bankHolder: z.string().optional(),
+    skKemenkumham: z.string().optional(),
+    izinPub: z.string().optional(),
   }),
 });
 

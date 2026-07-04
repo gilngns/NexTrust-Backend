@@ -10,8 +10,15 @@ datasource db {
 enum UserRole {
   ADMIN
   FOUNDATION
-  PEMDA
+  DINSOS
   DONOR
+}
+
+enum CampaignCategory {
+  PEMBANGUNAN
+  PENGADAAN_BARANG
+  ALAT_KESEHATAN
+  REKONSTRUKSI
 }
 
 enum CampaignStatus {
@@ -59,6 +66,10 @@ model User {
   custodialAddress String? @unique
   encryptedKey     String?
 
+  skKemenkumham String?
+  izinPub       String?
+  isVerified    Boolean @default(false)
+
   bankName      String?
   bankAccountNo String?
   bankHolder    String?
@@ -76,7 +87,11 @@ model Campaign {
   title       String
   description String?
   imageUrl    String?
+  category    CampaignCategory?
   rabCID      String?
+
+  latitude    Float?
+  longitude   Float?
 
   targetAmount    BigInt
   advanceAmount   BigInt
@@ -125,8 +140,12 @@ model Milestone {
 
   index        Int
   title        String?
+  amount       BigInt?
   evidenceCID  String?
   metadataHash String?
+
+  latitude     Float?
+  longitude    Float?
 
   aiScore Int?
   status  MilestoneStatus @default(PENDING)
