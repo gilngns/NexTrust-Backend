@@ -6,8 +6,10 @@ info:
     berbasis blockchain (full custodial). User tidak menyentuh wallet Web3.
     Semua respons berformat { ok: boolean, ... }."
 servers:
-  - url: http://localhost:3000
-    description: Local
+     - url: https://nextrust.my.id
+       description: Production
+     - url: http://localhost:3000
+       description: Local
 components:
   securitySchemes:
     bearerAuth:
