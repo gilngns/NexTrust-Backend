@@ -97,6 +97,28 @@ paths:
       responses:
         "200":
           description: OK
+  /api/campaigns/plan-draft:
+    post:
+      tags:
+        - Campaign
+      summary: Dapatkan AI Plan Draft dari RAB
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                targetAmount:
+                  type: number
+                  example: 10000000
+                rabData:
+                  type: object
+      responses:
+        "200":
+          description: OK
   /api/campaigns:
     get:
       tags:
@@ -127,6 +149,12 @@ paths:
                 targetAmount:
                   type: number
                   example: 10000000
+                latitude:
+                  type: number
+                  example: -6.200000
+                longitude:
+                  type: number
+                  example: 106.816666
                 durationDays:
                   type: number
                   example: 30
@@ -238,6 +266,22 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+  /api/auth/verify-foundation/{id}:
+    put:
+      tags:
+        - Auth
+      summary: Verifikasi Yayasan (Dinsos Only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Berhasil
   /api/auth/login:
     post:
       tags:
@@ -391,8 +435,16 @@ paths:
               properties:
                 proofUrl:
                   type: string
+                evidenceCID:
+                  type: string
                 description:
                   type: string
+                latitude:
+                  type: number
+                  example: -6.200100
+                longitude:
+                  type: number
+                  example: 106.816670
       responses:
         "200":
           description: OK

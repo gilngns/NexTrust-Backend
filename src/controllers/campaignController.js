@@ -34,6 +34,15 @@ export async function createCampaign(req, res, next) {
   }
 }
 
+export async function planDraft(req, res, next) {
+  try {
+    const plan = await campaignService.generateDraftPlan(req.body);
+    res.json({ ok: true, plan });
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function donate(req, res, next) {
   try {
     const result = await donationService.initiate({

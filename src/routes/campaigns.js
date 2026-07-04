@@ -18,6 +18,13 @@ const router = express.Router();
 router.get("/", asyncHandler(campaignController.listCampaigns));
 
 router.post(
+  "/plan-draft",
+  authenticate,
+  authorize("FOUNDATION", "DINSOS"),
+  asyncHandler(campaignController.planDraft)
+);
+
+router.post(
   "/",
   authenticate,
   authorize("FOUNDATION", "ADMIN"),
