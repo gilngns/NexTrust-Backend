@@ -1,0 +1,81 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [dev]
+  pull_request:
+    branches: [dev]
+
+jobs:
+  # ── 1. Test ──────────────────────────────────────────────
+  # Test suite memakai mock Prisma (tidak menyentuh DB nyata),
+  # jadi cukup env dummy agar config/index.js tidak melempar error.
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Run tests
+        env:
+          NODE_ENV: test
+          PORT: "3000"
+          DATABASE_URL: "postgresql://user:pass@localhost:5432/test?schema=public"
+          JWT_SECRET: "ci-dummy-secret-string-panjang-untuk-testing"
+          JWT_EXPIRES_IN: "15m"
+          WALLET_ENCRYPTION_SECRET: "ci-dummy-wallet-encryption-secret-panjang"
+          AMOY_RPC_URL: "https://rpc-amoy.polygon.technology"
+          ESCROW_ADDRESS: "0xD566636AB5A74276B0c120bD4593f9547D601bC9"
+          XIDR_ADDRESS: "0x3C1a391628A6805E8158C6ed747b640812E97eb6"
+          BACKEND_PRIVATE_KEY: "0x0123456789012345678901234567890123456789012345678901234567890123"
+          ORACLE_PRIVATE_KEY: "0x0123456789012345678901234567890123456789012345678901234567890123"
+          MIDTRANS_SERVER_KEY: "SB-Mid-server-ci"
+          MIDTRANS_CLIENT_KEY: "SB-Mid-client-ci"
+          MIDTRANS_IS_PRODUCTION: "false"
+        run: npm test
+
+  # ── 2. Deploy ────────────────────────────────────────────
+  # Hanya jalan saat push ke main (bukan PR) DAN test lolos.
+  deploy:
+    needs: test
+    if: github.ref == 'refs/heads/dev' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to VPS via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT }}
+          script: |
+            set -e
+            cd ${{ secrets.VPS_APP_DIR }}
+
+            echo "→ Pull latest"
+            git fetch --all
+            git reset --hard origin/dev
+
+            echo "→ Install deps (production)"
+            npm ci --omit=dev
+
+            echo "→ Prisma generate + migrate"
+            npx prisma generate
+            npx prisma migrate deploy
+
+            echo "→ Reload PM2"
+            pm2 startOrReload ecosystem.config.cjs --update-env
+            pm2 save
+
+            echo "✓ Deploy selesai"
