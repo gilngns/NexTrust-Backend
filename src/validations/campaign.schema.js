@@ -1,21 +1,34 @@
 import { z } from "zod";
 
 export const createCampaignSchema = z.object({
-  body: z.object({
-    title: z.string().min(5, "Judul minimal 5 karakter"),
-    description: z.string().min(10, "Deskripsi minimal 10 karakter"),
-    targetAmount: z.number().positive("Target harus lebih besar dari 0"),
-    durationDays: z.number().int().positive("Durasi hari harus positif").optional(),
-    category: z.enum(["PEMBANGUNAN", "PENGADAAN_BARANG", "ALAT_KESEHATAN", "REKONSTRUKSI"]),
-    onChainId: z.string(),
-    advanceAmount: z.number().positive(),
-    milestoneAmount: z.number().min(0),
-    totalMilestones: z.number().min(1),
-    rabCID: z.string().optional(),
-    imageUrl: z.string().optional(),
-    latitude: z.number().optional(),
-    longitude: z.number().optional(),
-  }),
+  body: z
+    .object({
+      title: z.string().min(5, "Judul minimal 5 karakter"),
+      description: z.string().min(10, "Deskripsi minimal 10 karakter"),
+      targetAmount: z.number().positive("Target harus lebih besar dari 0"),
+      durationDays: z.number().int().positive("Durasi hari harus positif").optional(),
+      category: z.enum(["PEMBANGUNAN", "PENGADAAN_BARANG", "ALAT_KESEHATAN", "REKONSTRUKSI"]),
+      onChainId: z.string(),
+      advanceAmount: z.number().positive(),
+      // Opsional: porsi per-milestone dihitung otomatis (retensi progresif)
+      // dari targetAmount - advanceAmount. Field ini diabaikan bila dikirim.
+      milestoneAmount: z.number().min(0).optional(),
+      // md §3.3 + kontrak: minimal 2, maksimal 6 milestone.
+      totalMilestones: z
+        .number()
+        .int()
+        .min(2, "Minimal 2 milestone")
+        .max(6, "Maksimal 6 milestone"),
+      rabCID: z.string().optional(),
+      imageUrl: z.string().optional(),
+      latitude: z.number().optional(),
+      longitude: z.number().optional(),
+    })
+    // md §3.2 + kontrak: DP maksimal 15% dari target.
+    .refine((b) => b.advanceAmount <= b.targetAmount * 0.15, {
+      message: "DP (advanceAmount) maksimal 15% dari target",
+      path: ["advanceAmount"],
+    }),
 });
 
 export const donateSchema = z.object({

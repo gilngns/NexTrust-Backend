@@ -696,14 +696,9 @@
         "type": "uint128"
       },
       {
-        "internalType": "uint128",
-        "name": "milestoneAmount",
-        "type": "uint128"
-      },
-      {
-        "internalType": "uint8",
-        "name": "totalMilestones",
-        "type": "uint8"
+        "internalType": "uint128[]",
+        "name": "_milestoneAmounts",
+        "type": "uint128[]"
       },
       {
         "internalType": "string",
@@ -769,11 +764,6 @@
           {
             "internalType": "uint128",
             "name": "totalCollected",
-            "type": "uint128"
-          },
-          {
-            "internalType": "uint128",
-            "name": "milestoneAmount",
             "type": "uint128"
           },
           {

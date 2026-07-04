@@ -58,8 +58,7 @@ describe("contractService", () => {
         campaignIdStr: "camp-1",
         targetAmount: BigInt(100),
         advanceAmount: BigInt(10),
-        milestoneAmount: BigInt(90),
-        totalMilestones: 1,
+        milestoneAmounts: [BigInt(36), BigInt(54)], // array retensi progresif
         rabCID: "cid",
         beneficiary: "0xBen",
       });
@@ -68,8 +67,7 @@ describe("contractService", () => {
         "0xHashedId",
         BigInt(100),
         BigInt(10),
-        BigInt(90),
-        1,
+        [BigInt(36), BigInt(54)],
         "cid",
         "0xBen"
       );

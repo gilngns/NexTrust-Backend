@@ -147,8 +147,9 @@ model Milestone {
   latitude     Float?
   longitude    Float?
 
-  aiScore Int?
-  status  MilestoneStatus @default(PENDING)
+  aiScore        Int?
+  status         MilestoneStatus @default(PENDING)
+  submitAttempts Int             @default(0)
 
   txHashSubmit  String?
   txHashOracle  String?

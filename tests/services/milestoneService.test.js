@@ -14,6 +14,7 @@ jest.unstable_mockModule("../../src/config/prisma.js", () => ({
       update: jest.fn(),
     },
     milestone: {
+      findUnique: jest.fn(),
       update: jest.fn(),
     },
   },
@@ -46,6 +47,7 @@ describe("milestoneService", () => {
   describe("submit", () => {
     it("should submit a milestone successfully", async () => {
       prisma.campaign.findUnique.mockResolvedValue({ id: "camp-1", onChainId: "chain-1", latitude: -6.2, longitude: 106.8 });
+      prisma.milestone.findUnique.mockResolvedValue({ submitAttempts: 0 });
       contractService.submitMilestone.mockResolvedValue({ txHash: "0xSubmitHash" });
       prisma.milestone.update.mockResolvedValue({ status: "SUBMITTED" });
 
@@ -74,6 +76,7 @@ describe("milestoneService", () => {
     });
     it("should flag for evaluation if GPS distance > 200m", async () => {
       prisma.campaign.findUnique.mockResolvedValue({ id: "camp-1", onChainId: "chain-1", latitude: -6.2, longitude: 106.8 });
+      prisma.milestone.findUnique.mockResolvedValue({ submitAttempts: 0 });
       contractService.submitMilestone.mockResolvedValue({ txHash: "0xSubmitHash" });
       prisma.milestone.update.mockResolvedValue({ status: "EVALUATING" });
 
@@ -90,6 +93,27 @@ describe("milestoneService", () => {
           status: "EVALUATING"
         })
       }));
+    });
+
+    it("should escalate to Dinsos review after max submit attempts", async () => {
+      // Sudah 2x gagal sebelumnya -> submit ke-3 wajib review (fallback §8.2).
+      prisma.campaign.findUnique.mockResolvedValue({ id: "camp-1", onChainId: "chain-1", latitude: -6.2, longitude: 106.8 });
+      prisma.milestone.findUnique.mockResolvedValue({ submitAttempts: 2 });
+      contractService.submitMilestone.mockResolvedValue({ txHash: "0xSubmitHash" });
+      prisma.milestone.update.mockResolvedValue({ status: "EVALUATING" });
+
+      const res = await milestoneService.submit({
+        campaignId: "camp-1",
+        index: 0,
+        evidenceCID: "cid",
+        latitude: -6.2001, // lokasi dekat (dalam radius) — tetap eskalasi krn attempts
+        longitude: 106.8001
+      });
+
+      expect(prisma.milestone.update).toHaveBeenCalledWith(expect.objectContaining({
+        data: expect.objectContaining({ status: "EVALUATING", submitAttempts: 3 })
+      }));
+      expect(res.escalated).toBe(true);
     });
   });
 
@@ -115,10 +139,10 @@ describe("milestoneService", () => {
       expect(res.decision).toBe("APPROVED");
     });
 
-    it("should score a milestone and mark as REJECTED if score < 85", async () => {
+    it("should mark as EVALUATING (review Dinsos) for grey-zone score 50-84", async () => {
       prisma.campaign.findUnique.mockResolvedValue({ id: "camp-1", onChainId: "chain-1" });
       oracleService.submitScore.mockResolvedValue({ txHash: "0xScoreHash" });
-      prisma.milestone.update.mockResolvedValue({ status: "REJECTED" });
+      prisma.milestone.update.mockResolvedValue({ status: "EVALUATING" });
 
       const res = await milestoneService.submitScore({
         campaignId: "camp-1",
@@ -127,9 +151,30 @@ describe("milestoneService", () => {
         nonce: 1,
       });
 
+      // Abu-abu TIDAK ditolak mentah; naik ke Dinsos (selaras kontrak: FROZEN).
       expect(prisma.milestone.update).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({ status: "REJECTED", aiScore: 80 }),
+          data: expect.objectContaining({ status: "EVALUATING", aiScore: 80 }),
+        })
+      );
+      expect(res.decision).toBe("EVALUATING");
+    });
+
+    it("should mark as REJECTED for failing score < 50", async () => {
+      prisma.campaign.findUnique.mockResolvedValue({ id: "camp-1", onChainId: "chain-1" });
+      oracleService.submitScore.mockResolvedValue({ txHash: "0xScoreHash" });
+      prisma.milestone.update.mockResolvedValue({ status: "REJECTED" });
+
+      const res = await milestoneService.submitScore({
+        campaignId: "camp-1",
+        index: 0,
+        score: 30,
+        nonce: 1,
+      });
+
+      expect(prisma.milestone.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ status: "REJECTED", aiScore: 30 }),
         })
       );
       expect(res.decision).toBe("REJECTED");

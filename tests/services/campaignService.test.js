@@ -76,12 +76,12 @@ describe("campaignService", () => {
       expect(prisma.user.findUnique).toHaveBeenCalledWith({
         where: { id: "user-123" },
       });
+      // milestoneTotal = target - advance = 900000, dibagi 2 -> [360000, 540000]
       expect(contractService.createCampaign).toHaveBeenCalledWith({
         campaignIdStr: validPayload.onChainId,
         targetAmount: BigInt(validPayload.targetAmount),
         advanceAmount: BigInt(validPayload.advanceAmount),
-        milestoneAmount: BigInt(validPayload.milestoneAmount),
-        totalMilestones: validPayload.totalMilestones,
+        milestoneAmounts: [BigInt(360000), BigInt(540000)],
         rabCID: validPayload.rabCID,
         beneficiary: "0x123",
       });

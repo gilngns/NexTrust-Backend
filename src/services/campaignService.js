@@ -1,6 +1,7 @@
 import prisma from "../config/prisma.js";
 import AppError from "../utils/AppError.js";
 import contractService from "./contractService.js";
+import { progressiveRetentionSplit } from "../utils/milestoneSplit.js";
 
 async function _serialize(campaign) {
   const out = { ...campaign };
@@ -40,12 +41,19 @@ const create = async ({
   }
   const beneficiary = foundation.custodialAddress;
 
+  // Total dana yang dibagi ke milestone = target - advance (DP).
+  // Bagi dengan retensi progresif (porsi akhir terbesar, md §3.2).
+  const milestoneTotal = BigInt(targetAmount) - BigInt(advanceAmount);
+  const milestoneAmounts = progressiveRetentionSplit(
+    milestoneTotal,
+    totalMilestones,
+  );
+
   const onchain = await contractService.createCampaign({
     campaignIdStr: onChainId,
     targetAmount: BigInt(targetAmount),
     advanceAmount: BigInt(advanceAmount),
-    milestoneAmount: BigInt(milestoneAmount),
-    totalMilestones,
+    milestoneAmounts,
     rabCID: rabCID || "QmPlaceholder",
     beneficiary,
   });
@@ -60,7 +68,9 @@ const create = async ({
       rabCID,
       targetAmount: BigInt(targetAmount),
       advanceAmount: BigInt(advanceAmount),
-      milestoneAmount: BigInt(milestoneAmount),
+      // Campaign.milestoneAmount = TOTAL dana milestone (agregat).
+      // Breakdown per-tahap ada di Milestone.amount (retensi progresif).
+      milestoneAmount: milestoneTotal,
       totalMilestones,
       foundationId,
       beneficiary,
@@ -72,6 +82,7 @@ const create = async ({
         create: Array.from({ length: totalMilestones }, (_, i) => ({
           index: i,
           title: `Milestone ${i + 1}`,
+          amount: milestoneAmounts[i], // porsi per-tahap (retensi progresif)
         })),
       },
     },
@@ -132,12 +143,14 @@ async function generateDraftPlan({ rabData, targetAmount }) {
     console.warn("AI Microservice unreachable, falling back to mock plan", error.message);
   }
 
-  // Fallback Mock Logic
+  // Fallback Mock Logic — DP + milestone harus = target (100%).
+  const advanceAmount = Math.floor(targetAmount * 0.15); // 15% DP
   return {
-    advanceAmount: Math.floor(targetAmount * 0.15), // 15% DP
-    milestoneAmount: Math.floor(targetAmount * 0.60), // 60% for milestones
+    advanceAmount,
+    milestoneAmount: targetAmount - advanceAmount, // sisanya (85%) untuk milestone
     totalMilestones: 3, // Default 3 milestones
-    notes: "Draf dihasilkan dari mock fallback karena AI service tidak dapat dihubungi.",
+    notes:
+      "Draf dihasilkan dari mock fallback karena AI service tidak dapat dihubungi. Porsi per-milestone memakai retensi progresif (porsi akhir terbesar).",
   };
 }
 

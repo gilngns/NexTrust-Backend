@@ -55,11 +55,14 @@ async function getLockedFunds(campaignIdStr) {
 async function getCampaign(campaignIdStr) {
   const c = await escrow.getCampaign(await toCampaignId(campaignIdStr));
 
+  // Catatan: struct Campaign on-chain TIDAK menyimpan milestoneAmount tunggal.
+  // Nominal per-milestone disimpan di mapping milestoneAmounts[campaignId][i]
+  // (per-index), dan di DB tercermin pada Milestone.amount. Jangan baca
+  // c.milestoneAmount di sini — field itu tidak ada di struct.
   return {
     campaignId: c.campaignId,
     targetAmount: c.targetAmount.toString(),
     totalCollected: c.totalCollected.toString(),
-    milestoneAmount: c.milestoneAmount.toString(),
     advanceAmount: c.advanceAmount.toString(),
     totalMilestones: Number(c.totalMilestones),
     currentMilestone: Number(c.currentMilestone),
@@ -69,12 +72,13 @@ async function getCampaign(campaignIdStr) {
   };
 }
 
+// Kontrak createCampaign menerima ARRAY porsi per-milestone (uint128[]),
+// bukan satu nilai tunggal. Porsi harus mengikuti retensi progresif (md §3.2).
 const createCampaign = async ({
   campaignIdStr,
   targetAmount,
   advanceAmount,
-  milestoneAmount,
-  totalMilestones,
+  milestoneAmounts, // bigint[]
   rabCID,
   beneficiary,
 }) => {
@@ -83,8 +87,7 @@ const createCampaign = async ({
     id,
     targetAmount,
     advanceAmount,
-    milestoneAmount,
-    totalMilestones,
+    milestoneAmounts,
     rabCID,
     beneficiary,
   );
