@@ -18,6 +18,10 @@ const swaggerFile = fs.readFileSync(path.join(__dirname, "../swagger.yaml"), "ut
 const swaggerSpec = yaml.parse(swaggerFile);
 
 const app = express();
+
+// Backend berjalan di belakang reverse proxy (Nginx/Apache), jadi Express
+// harus memercayai header X-Forwarded-For agar rate-limiter mengenali IP asli.
+app.set("trust proxy", 1);
 app.use(
   helmet({
     contentSecurityPolicy: false,
