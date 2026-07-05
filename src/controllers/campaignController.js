@@ -47,7 +47,10 @@ export async function donate(req, res, next) {
   try {
     const result = await donationService.initiate({
       campaignId: req.params.id,
-      ...req.body,
+      donorName: req.body.donorName,
+      // Skema validasi memakai field `amount`, tetapi service memakai
+      // `amountRupiah`. Jembatani di sini agar nominal tidak undefined.
+      amountRupiah: req.body.amount,
     });
     res.json({ ok: true, ...result });
   } catch (error) {

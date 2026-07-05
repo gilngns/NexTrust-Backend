@@ -6,10 +6,10 @@ info:
     berbasis blockchain (full custodial). User tidak menyentuh wallet Web3.
     Semua respons berformat { ok: boolean, ... }."
 servers:
-     - url: https://nextrust.my.id
-       description: Production
-     - url: http://localhost:3000
-       description: Local
+  - url: https://nextrust.my.id
+    description: Production
+  - url: http://localhost:3000
+    description: Local
 components:
   securitySchemes:
     bearerAuth:
@@ -141,16 +141,48 @@ paths:
           application/json:
             schema:
               type: object
+              required:
+                - title
+                - description
+                - targetAmount
+                - advanceAmount
+                - totalMilestones
+                - category
+                - onChainId
               properties:
                 title:
                   type: string
                   example: Bantuan Air Bersih
                 description:
                   type: string
-                  example: Deskripsi campaign
+                  example: Campaign untuk tes QRIS sandbox
                 targetAmount:
                   type: number
-                  example: 10000000
+                  description: Total target dana (rupiah)
+                  example: 1000000
+                advanceAmount:
+                  type: number
+                  description: DP/modal awal. Maksimal 15% dari targetAmount.
+                  example: 150000
+                totalMilestones:
+                  type: integer
+                  description: Jumlah milestone, antara 2 sampai 6.
+                  example: 2
+                category:
+                  type: string
+                  enum:
+                    - PEMBANGUNAN
+                    - PENGADAAN_BARANG
+                    - ALAT_KESEHATAN
+                    - REKONSTRUKSI
+                  example: PEMBANGUNAN
+                onChainId:
+                  type: string
+                  description: ID unik untuk deploy ke blockchain. Harus unik tiap campaign.
+                  example: test-campaign-001
+                rabCID:
+                  type: string
+                  description: (opsional) CID dokumen RAB di IPFS.
                 latitude:
                   type: number
                   example: -6.200000
@@ -223,7 +255,7 @@ paths:
     post:
       tags:
         - Auth
-      summary: Registrasi user (yayasan/pemda/admin)
+      summary: Registrasi user (yayasan/dinsos/admin)
       description: Yayasan otomatis mendapat custodial wallet (disembunyikan) &
         mengisi rekening bank.
       requestBody:
@@ -246,7 +278,7 @@ paths:
                   type: string
                   enum:
                     - FOUNDATION
-                    - PEMDA
+                    - DINSOS
                     - ADMIN
                     - DONOR
                   example: FOUNDATION
