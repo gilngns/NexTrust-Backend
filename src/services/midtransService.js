@@ -13,7 +13,7 @@ async function _authHeader() {
   return `Basic ${token}`;
 }
 
-async function createQris(orderId, grossAmount) {
+async function _charge(body) {
   const res = await fetch(`${baseUrl}/v2/charge`, {
     method: "POST",
     headers: {
@@ -21,44 +21,65 @@ async function createQris(orderId, grossAmount) {
       "Content-Type": "application/json",
       Authorization: await _authHeader(),
     },
-    body: JSON.stringify({
-      payment_type: "qris",
-      transaction_details: {
-        order_id: orderId,
-        gross_amount: grossAmount,
-      },
-    }),
+    body: JSON.stringify(body),
   });
-
   const data = await res.json();
-  if (!res.ok) {
-    throw AppError.badGateway(
-      `Midtrans error: ${data.status_message || JSON.stringify(data)}`,
-    );
-  }
+  return { res, data };
+}
 
+function _extractQrUrl(data) {
   const actions = data.actions || [];
-  // Midtrans dapat memberi nama action berbeda; cari yang paling mungkin.
   const qrAction =
     actions.find((a) => a.name === "generate-qr-code") ||
     actions.find((a) => a.name === "generate-qr-code-v2") ||
-    actions.find((a) => (a.name || "").includes("qr"));
+    actions.find((a) => (a.name || "").includes("qr")) ||
+    // GoPay memberi action "deeplink-redirect" / "generate-qr-code" juga
+    actions.find((a) => (a.name || "").includes("deeplink"));
+  return qrAction ? qrAction.url : null;
+}
 
-  const qrisUrl = qrAction ? qrAction.url : null;
+async function createQris(orderId, grossAmount) {
+  const txDetails = { order_id: orderId, gross_amount: grossAmount };
+
+  // 1) Coba QRIS (sesuai konsep utama).
+  let { res, data } = await _charge({
+    payment_type: "qris",
+    transaction_details: txDetails,
+  });
+
+  // 2) Jika QRIS belum aktif di akun (402 channel not activated),
+  //    fallback ke GoPay yang juga menghasilkan QR untuk di-scan.
+  const channelInactive =
+    !res.ok && String(data.status_code) === "402";
+
+  if (channelInactive) {
+    ({ res, data } = await _charge({
+      payment_type: "gopay",
+      transaction_details: txDetails,
+    }));
+  }
+
+  if (!res.ok) {
+    throw AppError.badGateway(
+      `Midtrans error: status=${data.status_code} msg=${data.status_message}`,
+    );
+  }
+
+  const qrisUrl = _extractQrUrl(data);
 
   if (!qrisUrl) {
-    // Jangan diam-diam mengembalikan null — lempar agar terlihat di log & response.
     throw AppError.badGateway(
       `Midtrans tidak mengembalikan URL QR. ` +
         `status=${data.status_code} msg=${data.status_message} ` +
-        `qr_string=${data.qr_string ? "ada" : "kosong"} ` +
-        `actions=${JSON.stringify(actions)}`,
+        `payment_type=${data.payment_type} ` +
+        `actions=${JSON.stringify(data.actions || [])}`,
     );
   }
 
   return {
     orderId,
     transactionId: data.transaction_id,
+    paymentType: data.payment_type,
     qrisUrl,
     qrString: data.qr_string || null,
     raw: data,
