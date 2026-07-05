@@ -29,7 +29,16 @@ export async function verifyFoundation(req, res, next) {
 
 export async function listFoundations(req, res, next) {
   try {
-    res.json({ ok: true, foundations: await authService.listFoundations() });
+    const foundations = await authService.listFoundations();
+    const formatted = foundations.map(f => ({
+      id: f.id,
+      name: f.name,
+      email: f.email,
+      skKemenkumham: f.skKemenkumham || true,
+      izinPub: f.izinPub || null,
+      isVerified: f.isVerified
+    }));
+    res.json({ success: true, foundations: formatted });
   } catch (error) {
     next(error);
   }
