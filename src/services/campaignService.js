@@ -88,8 +88,9 @@ const create = async ({
   return await _serialize(campaign);
 };
 
-async function list() {
+async function list(status) {
   const campaigns = await prisma.campaign.findMany({
+    where: status ? { status } : undefined,
     orderBy: { createdAt: "desc" },
     include: { foundation: { select: { name: true } } },
   });

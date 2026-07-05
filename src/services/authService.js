@@ -90,4 +90,21 @@ async function verifyFoundation(foundationId) {
   return await _sanitize(updated);
 }
 
-export default { register, login, verifyToken, verifyFoundation };
+async function listFoundations() {
+  const users = await prisma.user.findMany({
+    where: { role: "FOUNDATION" },
+    orderBy: { createdAt: "desc" },
+  });
+  return users.map((u) => {
+    const { passwordHash, encryptedKey, ...rest } = u;
+    return rest;
+  });
+}
+
+export default {
+  register,
+  login,
+  verifyToken,
+  verifyFoundation,
+  listFoundations,
+};

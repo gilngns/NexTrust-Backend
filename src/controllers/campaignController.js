@@ -5,7 +5,10 @@ import milestoneService from "../services/milestoneService.js";
 
 export async function listCampaigns(req, res, next) {
   try {
-    res.json({ ok: true, campaigns: await campaignService.list() });
+    res.json({
+      ok: true,
+      campaigns: await campaignService.list(req.query.status),
+    });
   } catch (error) {
     next(error);
   }
@@ -48,8 +51,6 @@ export async function donate(req, res, next) {
     const result = await donationService.initiate({
       campaignId: req.params.id,
       donorName: req.body.donorName,
-      // Skema validasi memakai field `amount`, tetapi service memakai
-      // `amountRupiah`. Jembatani di sini agar nominal tidak undefined.
       amountRupiah: req.body.amount,
     });
     res.json({ ok: true, ...result });

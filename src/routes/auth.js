@@ -30,4 +30,11 @@ router.put(
   asyncHandler(authController.verifyFoundation)
 );
 
+router.get(
+  "/foundations",
+  authenticate,
+  authorize("DINSOS", "ADMIN"),
+  asyncHandler(authController.listFoundations)
+);
+
 export default router;

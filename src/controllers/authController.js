@@ -26,3 +26,11 @@ export async function verifyFoundation(req, res, next) {
     next(error);
   }
 }
+
+export async function listFoundations(req, res, next) {
+  try {
+    res.json({ ok: true, foundations: await authService.listFoundations() });
+  } catch (error) {
+    next(error);
+  }
+}
