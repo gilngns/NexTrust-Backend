@@ -44,6 +44,47 @@ tags:
   - name: Pemda
     description: Resolusi campaign beku
 paths:
+  /api/transactions:
+    get:
+      tags:
+        - Donasi
+      summary: List riwayat semua transaksi donasi yang sukses (Admin/Dinsos)
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Berhasil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          example: "1783226186845"
+                        date:
+                          type: string
+                          example: "2026-07-05T18:02:39.000Z"
+                        campaign:
+                          type: string
+                          example: "Bantuan Air Bersih"
+                        amount:
+                          type: integer
+                          example: 50000
+                        status:
+                          type: string
+                          example: "Funds Disbursed"
+                        method:
+                          type: string
+                          example: "QRIS"
   /api/payouts/{payoutId}/process:
     post:
       tags:
