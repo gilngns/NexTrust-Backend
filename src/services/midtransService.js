@@ -8,80 +8,58 @@ const baseUrl = isProduction
   ? "https://api.midtrans.com"
   : "https://api.sandbox.midtrans.com";
 
+// Snap memakai host berbeda dari Core API.
+const snapUrl = isProduction
+  ? "https://app.midtrans.com/snap/v1/transactions"
+  : "https://app.sandbox.midtrans.com/snap/v1/transactions";
+
 async function _authHeader() {
   const token = Buffer.from(serverKey + ":").toString("base64");
   return `Basic ${token}`;
 }
 
-async function _charge(body) {
-  const res = await fetch(`${baseUrl}/v2/charge`, {
+async function createQris(orderId, grossAmount) {
+  // Pakai Snap: 1 halaman pembayaran yang menampilkan semua channel aktif
+  // (QRIS, GoPay, VA, dll) sesuai Snap Preferences. Lebih andal daripada Core
+  // API /v2/charge yang butuh aktivasi channel per-metode.
+  const res = await fetch(snapUrl, {
     method: "POST",
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
       Authorization: await _authHeader(),
     },
-    body: JSON.stringify(body),
+    body: JSON.stringify({
+      transaction_details: {
+        order_id: orderId,
+        gross_amount: grossAmount,
+      },
+      // Utamakan QRIS & GoPay agar donatur bisa scan QR.
+      enabled_payments: ["qris", "gopay", "shopeepay", "other_qris"],
+    }),
   });
+
   const data = await res.json();
-  return { res, data };
-}
-
-function _extractQrUrl(data) {
-  const actions = data.actions || [];
-  const qrAction =
-    actions.find((a) => a.name === "generate-qr-code") ||
-    actions.find((a) => a.name === "generate-qr-code-v2") ||
-    actions.find((a) => (a.name || "").includes("qr")) ||
-    // GoPay memberi action "deeplink-redirect" / "generate-qr-code" juga
-    actions.find((a) => (a.name || "").includes("deeplink"));
-  return qrAction ? qrAction.url : null;
-}
-
-async function createQris(orderId, grossAmount) {
-  const txDetails = { order_id: orderId, gross_amount: grossAmount };
-
-  // 1) Coba QRIS (sesuai konsep utama).
-  let { res, data } = await _charge({
-    payment_type: "qris",
-    transaction_details: txDetails,
-  });
-
-  // 2) Jika QRIS belum aktif di akun (402 channel not activated),
-  //    fallback ke GoPay yang juga menghasilkan QR untuk di-scan.
-  const channelInactive =
-    !res.ok && String(data.status_code) === "402";
-
-  if (channelInactive) {
-    ({ res, data } = await _charge({
-      payment_type: "gopay",
-      transaction_details: txDetails,
-    }));
-  }
 
   if (!res.ok) {
     throw AppError.badGateway(
-      `Midtrans error: status=${data.status_code} msg=${data.status_message}`,
+      `Midtrans Snap error: status=${res.status} ` +
+        `msg=${data.error_messages ? data.error_messages.join(", ") : JSON.stringify(data)}`,
     );
   }
 
-  const qrisUrl = _extractQrUrl(data);
-
-  if (!qrisUrl) {
+  if (!data.redirect_url) {
     throw AppError.badGateway(
-      `Midtrans tidak mengembalikan URL QR. ` +
-        `status=${data.status_code} msg=${data.status_message} ` +
-        `payment_type=${data.payment_type} ` +
-        `actions=${JSON.stringify(data.actions || [])}`,
+      `Midtrans Snap tidak mengembalikan redirect_url: ${JSON.stringify(data)}`,
     );
   }
 
   return {
     orderId,
-    transactionId: data.transaction_id,
-    paymentType: data.payment_type,
-    qrisUrl,
-    qrString: data.qr_string || null,
+    snapToken: data.token,
+    // Halaman donasi memakai `qrisUrl` sebagai link bayar — isi dengan
+    // redirect_url Snap (halaman pembayaran Midtrans).
+    qrisUrl: data.redirect_url,
     raw: data,
   };
 }

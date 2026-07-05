@@ -21,24 +21,27 @@ describe("midtransService", () => {
   });
 
   describe("createQris", () => {
-    it("should call midtrans API and return qrisUrl", async () => {
+    it("should call midtrans Snap API and return qrisUrl (redirect_url)", async () => {
       global.fetch.mockResolvedValue({
         ok: true,
         json: async () => ({
-          actions: [{ name: "generate-qr-code", url: "http://qris.url" }],
+          token: "snap-token-123",
+          redirect_url: "http://snap.url/pay",
         }),
       });
 
       const res = await midtransService.createQris("order-1", 100000);
 
       expect(global.fetch).toHaveBeenCalled();
-      expect(res.qrisUrl).toBe("http://qris.url");
+      expect(res.qrisUrl).toBe("http://snap.url/pay");
+      expect(res.snapToken).toBe("snap-token-123");
     });
 
-    it("should throw error if fetch fails", async () => {
+    it("should throw error if Snap request fails", async () => {
       global.fetch.mockResolvedValue({
         ok: false,
-        json: async () => ({ status_message: "Error message" }),
+        status: 400,
+        json: async () => ({ error_messages: ["Error message"] }),
       });
 
       await expect(midtransService.createQris("order-1", 100)).rejects.toThrow("Error message");
