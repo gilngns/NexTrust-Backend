@@ -38,14 +38,27 @@ async function createQris(orderId, grossAmount) {
     );
   }
 
-  const qrAction = (data.actions || []).find(
-    (a) => a.name === "generate-qr-code",
-  );
+  const actions = data.actions || [];
+  // Midtrans dapat memberi nama action berbeda; cari yang paling mungkin.
+  const qrAction =
+    actions.find((a) => a.name === "generate-qr-code") ||
+    actions.find((a) => a.name === "generate-qr-code-v2") ||
+    actions.find((a) => (a.name || "").includes("qr"));
+
+  const qrisUrl = qrAction ? qrAction.url : null;
+
+  if (!qrisUrl) {
+    // Jangan diam-diam mengembalikan null — lempar agar terlihat di log & response.
+    throw AppError.badGateway(
+      `Midtrans tidak mengembalikan URL QR. Actions: ${JSON.stringify(actions)}`,
+    );
+  }
 
   return {
     orderId,
     transactionId: data.transaction_id,
-    qrisUrl: qrAction ? qrAction.url : null,
+    qrisUrl,
+    qrString: data.qr_string || null,
     raw: data,
   };
 }
