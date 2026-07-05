@@ -27,7 +27,6 @@ async function createQris(orderId, grossAmount) {
         order_id: orderId,
         gross_amount: grossAmount,
       },
-      qris: { acquirer: "gopay" },
     }),
   });
 
@@ -50,7 +49,10 @@ async function createQris(orderId, grossAmount) {
   if (!qrisUrl) {
     // Jangan diam-diam mengembalikan null — lempar agar terlihat di log & response.
     throw AppError.badGateway(
-      `Midtrans tidak mengembalikan URL QR. Actions: ${JSON.stringify(actions)}`,
+      `Midtrans tidak mengembalikan URL QR. ` +
+        `status=${data.status_code} msg=${data.status_message} ` +
+        `qr_string=${data.qr_string ? "ada" : "kosong"} ` +
+        `actions=${JSON.stringify(actions)}`,
     );
   }
 
