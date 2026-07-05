@@ -292,6 +292,47 @@ paths:
       responses:
         "200":
           description: OK
+  /api/auth/foundations:
+    get:
+      tags:
+        - Auth
+      summary: Dapatkan daftar Yayasan (Admin/Dinsos)
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Berhasil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  foundations:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          example: "user-1234"
+                        name:
+                          type: string
+                          example: "Yayasan Peduli Anak"
+                        email:
+                          type: string
+                          example: "peduli@yayasan.com"
+                        skKemenkumham:
+                          type: string
+                          example: "URL/CID-dokumen-legal"
+                        izinPub:
+                          type: string
+                          example: "URL-izin"
+                        isVerified:
+                          type: boolean
+                          example: false
   /api/auth/register:
     post:
       tags:
