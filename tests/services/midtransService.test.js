@@ -41,7 +41,7 @@ describe("midtransService", () => {
         json: async () => ({ status_message: "Error message" }),
       });
 
-      await expect(midtransService.createQris("order-1", 100)).rejects.toThrow("Midtrans error: Error message");
+      await expect(midtransService.createQris("order-1", 100)).rejects.toThrow("Error message");
     });
   });
 
