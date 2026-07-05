@@ -17,10 +17,12 @@ const __dirname = path.dirname(__filename);
 const swaggerFile = fs.readFileSync(path.join(__dirname, "../swagger.yaml"), "utf8");
 const swaggerSpec = yaml.parse(swaggerFile);
 
+BigInt.prototype.toJSON = function () {
+  return this.toString();
+};
+
 const app = express();
 
-// Backend berjalan di belakang reverse proxy (Nginx/Apache), jadi Express
-// harus memercayai header X-Forwarded-For agar rate-limiter mengenali IP asli.
 app.set("trust proxy", 1);
 app.use(
   helmet({
