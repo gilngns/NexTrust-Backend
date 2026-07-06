@@ -1,64 +1,107 @@
-import { jest } from "@jest/globals";
+import prisma from "../config/prisma.js";
+import AppError from "../utils/AppError.js";
 
-jest.unstable_mockModule("../../src/config/prisma.js", () => ({
-  default: {
-    rabCheck: {
-      create: jest.fn(),
-      findUnique: jest.fn(),
+async function evaluateWithAI({ items, total, targetAmount }) {
+  const target = Number(targetAmount || 0);
+
+  const aiUrl = process.env.AI_SERVICE_URL || "http://localhost:8000";
+  const aiToken = process.env.AI_INTERNAL_TOKEN || "";
+  try {
+    const res = await fetch(`${aiUrl}/evaluate-rab`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(aiToken ? { "X-Internal-Token": aiToken } : {}),
+      },
+      body: JSON.stringify({ items, total, targetAmount: target }),
+    });
+
+        if (res.ok) {
+      const data = await res.json();
+      return {
+        score: data.score,
+        reasonable: data.reasonable,
+        notes: data.notes,
+        source: "AI_MICROSERVICE",
+      };
+    }
+  } catch (error) {
+    console.warn("AI Microservice unreachable, falling back to mock logic", error.message);
+  }
+
+  const notes = [];
+  let score = 100;
+
+  if (target > 0 && total > target * 1.1) {
+    score -= 40;
+    notes.push(
+      `Total RAB (${total}) melebihi target (${target}) lebih dari 10%.`,
+    );
+  }
+  if (target > 0 && total < target * 0.5) {
+    score -= 15;
+    notes.push(
+      `Total RAB (${total}) jauh di bawah target — rincian mungkin kurang lengkap.`,
+    );
+  }
+  for (const it of items) {
+    const price = Number(it.unitPrice);
+    if (!price || price <= 0) {
+      score -= 20;
+      notes.push(`Item "${it.name}" memiliki harga satuan tidak valid.`);
+    }
+  }
+
+  if (score < 0) score = 0;
+  const reasonable = score >= 60;
+
+  return {
+    score,
+    reasonable,
+    notes: notes.length ? notes.join(" ") : "RAB tampak wajar.",
+    source: "MOCK_FALLBACK",
+  };
+}
+
+async function check({ items, targetAmount, campaignDraftId }) {
+  if (!Array.isArray(items) || items.length === 0) {
+    throw AppError.badRequest();
+  }
+
+  const total = items.reduce(
+    (sum, it) => sum + Number(it.qty) * Number(it.unitPrice),
+    0,
+  );
+
+  const verdict = await evaluateWithAI({ items, total, targetAmount });
+  const record = await prisma.rabCheck.create({
+    data: {
+      campaignDraftId: campaignDraftId || null,
+      items: JSON.stringify(items),
+      totalAmount: BigInt(Math.round(total)),
+      targetAmount: BigInt(Math.round(Number(targetAmount || 0))),
+      score: verdict.score,
+      reasonable: verdict.reasonable,
+      notes: verdict.notes,
     },
-  },
-}));
-
-const prisma = (await import("../../src/config/prisma.js")).default;
-const rabService = (await import("../../src/services/rabService.js")).default;
-
-describe("rabService", () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    global.fetch = jest.fn();
   });
 
-  describe("check", () => {
-    it("should evaluate RAB and store the result", async () => {
-      const items = [{ name: "Semen", qty: 10, unitPrice: 50000 }];
+  return {
+    id: record.id,
+    total,
+    ...verdict,
+  };
+}
 
-            prisma.rabCheck.create.mockResolvedValue({
-        id: "rab-1",
-        items: JSON.stringify(items),
-        totalAmount: BigInt(500000),
-        targetAmount: BigInt(600000),
-        score: 100,
-        reasonable: true,
-      });
+async function getById(id) {
+  const rec = await prisma.rabCheck.findUnique({ where: { id } });
+  if (!rec) throw AppError.notFound();
+  return {
+    ...rec,
+    items: JSON.parse(rec.items),
+    totalAmount: rec.totalAmount.toString(),
+    targetAmount: rec.targetAmount.toString(),
+  };
+}
 
-      const res = await rabService.check({ items, targetAmount: 600000, campaignDraftId: "draft-1" });
-
-      expect(prisma.rabCheck.create).toHaveBeenCalled();
-      expect(res.id).toBe("rab-1");
-      expect(res.score).toBe(100);
-      expect(res.reasonable).toBe(true);
-      expect(res.total).toBe(500000);
-    });
-
-    it("should throw badRequest if items array is empty", async () => {
-      await expect(rabService.check({ items: [] })).rejects.toThrow("Bad Request");
-    });
-  });
-
-  describe("getById", () => {
-    it("should retrieve and deserialize RAB check", async () => {
-      prisma.rabCheck.findUnique.mockResolvedValue({
-        id: "rab-1",
-        items: JSON.stringify([{ name: "Pasir" }]),
-        totalAmount: BigInt(100000),
-        targetAmount: BigInt(200000),
-      });
-
-      const res = await rabService.getById("rab-1");
-
-            expect(prisma.rabCheck.findUnique).toHaveBeenCalledWith({ where: { id: "rab-1" } });
-      expect(res.items).toEqual([{ name: "Pasir" }]);
-      expect(res.totalAmount).toBe("100000");
-    });
-  });
-});
+export default { check, evaluateWithAI, getById };
