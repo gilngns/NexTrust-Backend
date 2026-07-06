@@ -56,6 +56,14 @@ enum PayoutStatus {
   FAILED
 }
 
+enum NotificationType {
+  INFO
+  WARNING
+  SUCCESS
+  ERROR
+  USER
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
@@ -76,6 +84,7 @@ model User {
 
   campaigns Campaign[]
   payouts   Payout[]
+  notifications Notification[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -195,3 +204,18 @@ model RabCheck {
 
   createdAt DateTime @default(now())
 }
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id])
+  
+  title     String
+  message   String
+  type      NotificationType @default(INFO)
+  isRead    Boolean          @default(false)
+  link      String?
+
+  createdAt DateTime @default(now())
+}
+

@@ -6,6 +6,7 @@ import rabRoutes from "./rab.js";
 import webhookRoutes from "./webhook.js";
 import systemRoutes from "./system.js";
 import transactionRoutes from "./transactions.js";
+import notificationRoutes from "./notifications.js";
 
 const router = express.Router();
 
@@ -16,5 +17,6 @@ router.use("/payouts", payoutRoutes);
 router.use("/rabs", rabRoutes);
 router.use("/webhooks", webhookRoutes);
 router.use("/transactions", transactionRoutes);
+router.use("/notifications", notificationRoutes);
 
 export default router;
