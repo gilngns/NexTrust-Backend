@@ -4,5 +4,5 @@ export default {
   moduleNameMapper: {
     "^(\\.{1,2}/.*)\\.js$": "$1",
   },
-  setupFilesAfterEnv: [],
+  setupFiles: ["<rootDir>/jest.setup.js"],
 };
