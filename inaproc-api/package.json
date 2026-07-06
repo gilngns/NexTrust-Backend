@@ -1,0 +1,13 @@
+{
+  "name": "inaproc-api",
+  "version": "1.0.0",
+  "description": "API Scraper untuk Inaproc",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.0",
+    "playwright": "^1.42.0"
+  }
+}
