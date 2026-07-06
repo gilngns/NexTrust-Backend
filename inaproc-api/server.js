@@ -186,6 +186,9 @@ app.use("/api/produk", (req, res, next) => {
 
 app.get("/api/produk", async (req, res) => {
   const keyword = (req.query.keyword || "").trim();
+  if (!keyword) {
+    return res.status(400).json({ error: "Parameter 'keyword' wajib diisi." });
+  }
 
   const params = {
     keyword,
