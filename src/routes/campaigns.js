@@ -9,6 +9,7 @@ import {
   submitMilestoneSchema,
   scoreMilestoneSchema,
   resolveFrozenSchema,
+  updateImageSchema,
 } from "../validations/campaign.schema.js";
 import { requestPayoutSchema } from "../validations/payout.schema.js";
 import { authenticate, authorize } from "../middleware/auth.js";
@@ -84,6 +85,14 @@ router.post(
   authorize("DINSOS", "ADMIN"),
   validate(resolveFrozenSchema),
   asyncHandler(campaignController.resolveFrozen),
+);
+
+router.patch(
+  "/:id/image",
+  authenticate,
+  authorize("FOUNDATION", "ADMIN"),
+  validate(updateImageSchema),
+  asyncHandler(campaignController.updateImage),
 );
 
 export default router;

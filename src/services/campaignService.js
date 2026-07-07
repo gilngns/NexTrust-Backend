@@ -92,9 +92,16 @@ async function list(status) {
   const campaigns = await prisma.campaign.findMany({
     where: status ? { status } : undefined,
     orderBy: { createdAt: "desc" },
-    include: { foundation: { select: { name: true } } },
+    include: { 
+      foundation: { select: { name: true } },
+      _count: { select: { donations: true } }
+    },
   });
-  return await Promise.all(campaigns.map(async (c) => await _serialize(c)));
+  return await Promise.all(campaigns.map(async (c) => {
+    const serialized = await _serialize(c);
+    serialized.donorCount = c._count?.donations || 0;
+    return serialized;
+  }));
 }
 
 async function getById(id) {
@@ -150,4 +157,12 @@ async function generateDraftPlan({ rabData, targetAmount }) {
   };
 }
 
-export default { create, list, getById, generateDraftPlan };
+async function updateImage(id, imageUrl) {
+  const campaign = await prisma.campaign.update({
+    where: { id },
+    data: { imageUrl },
+  });
+  return await _serialize(campaign);
+}
+
+export default { create, list, getById, generateDraftPlan, updateImage };

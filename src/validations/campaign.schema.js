@@ -63,3 +63,9 @@ export const resolveFrozenSchema = z.object({
     }),
   }),
 });
+
+export const updateImageSchema = z.object({
+  body: z.object({
+    imageUrl: z.string().min(1, "URL gambar tidak boleh kosong"),
+  }),
+});

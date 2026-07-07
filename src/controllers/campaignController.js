@@ -132,3 +132,12 @@ export async function resolveFrozen(req, res, next) {
     next(error);
   }
 }
+
+export async function updateImage(req, res, next) {
+  try {
+    const campaign = await campaignService.updateImage(req.params.id, req.body.imageUrl);
+    res.json({ ok: true, campaign });
+  } catch (error) {
+    next(error);
+  }
+}
