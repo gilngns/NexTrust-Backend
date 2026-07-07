@@ -113,18 +113,19 @@ describe("campaignService", () => {
     it("should fetch from AI service and return plan", async () => {
       global.fetch.mockResolvedValue({
         ok: true,
-        json: async () => ({ advanceAmount: 10, totalMilestones: 3 })
+        json: async () => ({ score: 90, notes: "Good" })
       });
 
-      const res = await campaignService.generateDraftPlan({ rabData: "data", targetAmount: 100 });
-      expect(res.advanceAmount).toBe(10);
+      const res = await campaignService.generateDraftPlan({ rabData: [{item: "A", qty: 1, harga: 10}], targetAmount: 100 });
+      expect(res.advanceAmount).toBe(15);
+      expect(res.notes).toContain("Good");
       expect(global.fetch).toHaveBeenCalled();
     });
 
     it("should fallback to mock if AI service fails", async () => {
       global.fetch.mockRejectedValue(new Error("Network Error"));
 
-      const res = await campaignService.generateDraftPlan({ rabData: "data", targetAmount: 100 });
+      const res = await campaignService.generateDraftPlan({ rabData: [{item: "A", qty: 1, harga: 10}], targetAmount: 100 });
       expect(res.advanceAmount).toBe(15);
       expect(res.totalMilestones).toBe(3);
     });
