@@ -94,7 +94,8 @@ async function list(status) {
     orderBy: { createdAt: "desc" },
     include: { 
       foundation: { select: { name: true } },
-      _count: { select: { donations: true } }
+      _count: { select: { donations: true } },
+      milestones: true
     },
   });
   return await Promise.all(campaigns.map(async (c) => {

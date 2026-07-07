@@ -12,7 +12,7 @@ async function evaluateWithAI({ items, total, targetAmount }) {
       body: JSON.stringify({ items, total, targetAmount: target }),
     });
 
-        if (res.ok) {
+    if (res.ok) {
       const data = await res.json();
       return {
         score: data.score,
