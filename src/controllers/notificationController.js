@@ -4,7 +4,7 @@ const prisma = new PrismaClient();
 
 export const getNotifications = async (req, res, next) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId;
     let notifications = await prisma.notification.findMany({
       where: { userId },
       orderBy: { createdAt: "desc" },
@@ -50,7 +50,7 @@ export const getNotifications = async (req, res, next) => {
 
 export const markAsRead = async (req, res, next) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId;
     const { id } = req.body;
 
     if (!id) {
