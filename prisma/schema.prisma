@@ -7,6 +7,132 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id               String         @id @default(cuid())
+  email            String         @unique
+  passwordHash     String
+  name             String
+  role             UserRole       @default(FOUNDATION)
+  custodialAddress String?        @unique
+  encryptedKey     String?
+  skKemenkumham    String?
+  izinPub          String?
+  isVerified       Boolean        @default(false)
+  bankName         String?
+  bankAccountNo    String?
+  bankHolder       String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  campaigns        Campaign[]
+  notifications    Notification[]
+  payouts          Payout[]
+}
+
+model Campaign {
+  id              String            @id @default(cuid())
+  onChainId       String            @unique
+  title           String
+  description     String?
+  imageUrl        String?
+  category        CampaignCategory?
+  rabCID          String?
+  latitude        Float?
+  longitude       Float?
+  targetAmount    BigInt
+  advanceAmount   BigInt
+  milestoneAmount BigInt
+  totalMilestones Int
+  status          CampaignStatus    @default(DRAFT)
+  txHashCreate    String?
+  foundationId    String
+  beneficiary     String
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  foundation      User              @relation(fields: [foundationId], references: [id])
+  donations       Donation[]
+  milestones      Milestone[]
+  payouts         Payout[]
+}
+
+model Donation {
+  id            String         @id @default(cuid())
+  campaignId    String
+  donorName     String?
+  donorAddress  String
+  amount        BigInt
+  status        DonationStatus @default(PENDING)
+  orderId       String         @unique
+  qrisUrl       String?
+  paidAt        DateTime?
+  txHashDeposit String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  campaign      Campaign       @relation(fields: [campaignId], references: [id])
+}
+
+model Milestone {
+  id             String          @id @default(cuid())
+  campaignId     String
+  index          Int
+  title          String?
+  amount         BigInt?
+  evidenceCID    String?
+  metadataHash   String?
+  latitude       Float?
+  longitude      Float?
+  aiScore        Int?
+  status         MilestoneStatus @default(PENDING)
+  txHashSubmit   String?
+  txHashOracle   String?
+  txHashRelease  String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  submitAttempts Int             @default(0)
+  campaign       Campaign        @relation(fields: [campaignId], references: [id])
+
+  @@unique([campaignId, index])
+}
+
+model Payout {
+  id            String       @id @default(cuid())
+  campaignId    String
+  foundationId  String
+  amount        BigInt
+  status        PayoutStatus @default(PENDING)
+  bankName      String?
+  bankAccountNo String?
+  payoutRef     String?
+  note          String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  campaign      Campaign     @relation(fields: [campaignId], references: [id])
+  foundation    User         @relation(fields: [foundationId], references: [id])
+}
+
+model RabCheck {
+  id              String   @id @default(cuid())
+  campaignDraftId String?
+  items           String
+  totalAmount     BigInt
+  targetAmount    BigInt
+  score           Int
+  reasonable      Boolean
+  notes           String?
+  createdAt       DateTime @default(now())
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  title     String
+  message   String
+  type      NotificationType @default(INFO)
+  isRead    Boolean          @default(false)
+  link      String?
+  createdAt DateTime         @default(now())
+  user      User             @relation(fields: [userId], references: [id])
+}
+
 enum UserRole {
   ADMIN
   FOUNDATION
@@ -63,159 +189,3 @@ enum NotificationType {
   ERROR
   USER
 }
-
-model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  passwordHash String
-  name         String
-  role         UserRole @default(FOUNDATION)
-
-  custodialAddress String? @unique
-  encryptedKey     String?
-
-  skKemenkumham String?
-  izinPub       String?
-  isVerified    Boolean @default(false)
-
-  bankName      String?
-  bankAccountNo String?
-  bankHolder    String?
-
-  campaigns Campaign[]
-  payouts   Payout[]
-  notifications Notification[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model Campaign {
-  id          String  @id @default(cuid())
-  onChainId   String  @unique
-  title       String
-  description String?
-  imageUrl    String?
-  category    CampaignCategory?
-  rabCID      String?
-
-  latitude    Float?
-  longitude   Float?
-
-  targetAmount    BigInt
-  advanceAmount   BigInt
-  milestoneAmount BigInt
-  totalMilestones Int
-
-  status       CampaignStatus @default(DRAFT)
-  txHashCreate String?
-
-  foundation   User   @relation(fields: [foundationId], references: [id])
-  foundationId String
-  beneficiary  String
-
-  donations  Donation[]
-  milestones Milestone[]
-  payouts    Payout[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model Donation {
-  id         String   @id @default(cuid())
-  campaign   Campaign @relation(fields: [campaignId], references: [id])
-  campaignId String
-
-  donorName    String?
-  donorAddress String
-  amount       BigInt
-
-  status  DonationStatus @default(PENDING)
-  orderId String         @unique
-  qrisUrl String?
-  paidAt  DateTime?
-
-  txHashDeposit String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model Milestone {
-  id         String   @id @default(cuid())
-  campaign   Campaign @relation(fields: [campaignId], references: [id])
-  campaignId String
-
-  index        Int
-  title        String?
-  amount       BigInt?
-  evidenceCID  String?
-  metadataHash String?
-
-  latitude     Float?
-  longitude    Float?
-
-  aiScore        Int?
-  status         MilestoneStatus @default(PENDING)
-  submitAttempts Int             @default(0)
-
-  txHashSubmit  String?
-  txHashOracle  String?
-  txHashRelease String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([campaignId, index])
-}
-
-model Payout {
-  id           String   @id @default(cuid())
-  campaign     Campaign @relation(fields: [campaignId], references: [id])
-  campaignId   String
-  foundation   User     @relation(fields: [foundationId], references: [id])
-  foundationId String
-
-  amount BigInt
-  status PayoutStatus @default(PENDING)
-
-  bankName      String?
-  bankAccountNo String?
-
-  payoutRef String?
-  note      String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model RabCheck {
-  id              String   @id @default(cuid())
-  campaignDraftId String?
-
-  items        String 
-  totalAmount  BigInt
-  targetAmount BigInt
-
-  score      Int
-  reasonable Boolean
-  notes      String?
-
-  createdAt DateTime @default(now())
-}
-
-model Notification {
-  id        String           @id @default(cuid())
-  userId    String
-  user      User             @relation(fields: [userId], references: [id])
-  
-  title     String
-  message   String
-  type      NotificationType @default(INFO)
-  isRead    Boolean          @default(false)
-  link      String?
-
-  createdAt DateTime @default(now())
-}
-
