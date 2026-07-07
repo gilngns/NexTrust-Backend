@@ -95,4 +95,11 @@ router.patch(
   asyncHandler(campaignController.updateImage),
 );
 
+router.put(
+  "/:id/approve",
+  authenticate,
+  authorize("DINSOS", "ADMIN"),
+  asyncHandler(campaignController.approve),
+);
+
 export default router;

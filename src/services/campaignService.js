@@ -32,6 +32,7 @@ const create = async ({
   latitude,
   longitude,
   izinPub,
+  aiScore,
 }) => {
   const foundation = await prisma.user.findUnique({
     where: { id: foundationId },
@@ -74,7 +75,7 @@ const create = async ({
       latitude,
       longitude,
       izinPub,
-      status: "ACTIVE",
+      status: (aiScore !== undefined && aiScore < 85) ? "EVALUATING" : "ACTIVE",
       txHashCreate: onchain.txHash,
       milestones: {
         create: Array.from({ length: totalMilestones }, (_, i) => ({
@@ -146,6 +147,7 @@ async function generateDraftPlan({ rabData, targetAmount }) {
   const total = items.reduce((sum, i) => sum + (i.qty * i.unitPrice), 0);
 
   let aiNotes = "Sistem telah merumuskan skema pencairan dana (milestones) berdasarkan best-practice untuk meminimalkan risiko. Porsi per-milestone memakai retensi progresif (porsi akhir terbesar).";
+  let aiScore = 0;
 
   try {
     const res = await fetch(`${aiUrl}/evaluate-rab`, {
@@ -159,7 +161,8 @@ async function generateDraftPlan({ rabData, targetAmount }) {
 
     if (res.ok) {
       const aiResult = await res.json();
-      aiNotes = `AI Review (Skor: ${aiResult.score}): ${aiResult.notes}`;
+      aiScore = aiResult.score || 0;
+      aiNotes = `AI Review (Skor: ${aiScore}): ${aiResult.notes}`;
     }
   } catch (error) {
     console.warn("AI Microservice unreachable, falling back to mock plan", error.message);
@@ -171,6 +174,7 @@ async function generateDraftPlan({ rabData, targetAmount }) {
     milestoneAmount: targetAmount - advanceAmount, 
     totalMilestones: 3, 
     notes: aiNotes,
+    aiScore,
   };
 }
 
@@ -182,4 +186,12 @@ async function updateImage(id, imageUrl) {
   return await _serialize(campaign);
 }
 
-export default { create, list, getById, generateDraftPlan, updateImage };
+async function approve(id) {
+  const campaign = await prisma.campaign.update({
+    where: { id },
+    data: { status: "ACTIVE" },
+  });
+  return await _serialize(campaign);
+}
+
+export default { create, list, getById, generateDraftPlan, updateImage, approve };

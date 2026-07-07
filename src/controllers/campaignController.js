@@ -141,3 +141,12 @@ export async function updateImage(req, res, next) {
     next(error);
   }
 }
+
+export async function approve(req, res, next) {
+  try {
+    const campaign = await campaignService.approve(req.params.id);
+    res.json({ ok: true, campaign });
+  } catch (error) {
+    next(error);
+  }
+}
