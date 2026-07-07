@@ -24,7 +24,7 @@ export async function getTransactions(req, res, next) {
       campaign: donation.campaign?.title || "Unknown Campaign",
       amount: Number(donation.amount) / 1000000,
       status: donation.status === "DEPOSITED" ? "Funds Disbursed" : "Success",
-      method: "QRIS", // We don't store payment method, defaulting to QRIS based on Midtrans snap preference
+      method: "QRIS",
     }));
 
     res.json({

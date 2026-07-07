@@ -8,7 +8,6 @@ const baseUrl = isProduction
   ? "https://api.midtrans.com"
   : "https://api.sandbox.midtrans.com";
 
-// Snap memakai host berbeda dari Core API.
 const snapUrl = isProduction
   ? "https://app.midtrans.com/snap/v1/transactions"
   : "https://app.sandbox.midtrans.com/snap/v1/transactions";
@@ -19,9 +18,6 @@ async function _authHeader() {
 }
 
 async function createQris(orderId, grossAmount) {
-  // Pakai Snap: 1 halaman pembayaran yang menampilkan semua channel aktif
-  // (QRIS, GoPay, VA, dll) sesuai Snap Preferences. Lebih andal daripada Core
-  // API /v2/charge yang butuh aktivasi channel per-metode.
   const res = await fetch(snapUrl, {
     method: "POST",
     headers: {
@@ -34,7 +30,6 @@ async function createQris(orderId, grossAmount) {
         order_id: orderId,
         gross_amount: grossAmount,
       },
-      // Utamakan QRIS & GoPay agar donatur bisa scan QR.
       enabled_payments: ["qris", "gopay", "shopeepay", "other_qris"],
     }),
   });
@@ -57,8 +52,6 @@ async function createQris(orderId, grossAmount) {
   return {
     orderId,
     snapToken: data.token,
-    // Halaman donasi memakai `qrisUrl` sebagai link bayar — isi dengan
-    // redirect_url Snap (halaman pembayaran Midtrans).
     qrisUrl: data.redirect_url,
     raw: data,
   };

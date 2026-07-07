@@ -8,11 +8,10 @@ export const getNotifications = async (req, res, next) => {
     let notifications = await prisma.notification.findMany({
       where: { userId },
       orderBy: { createdAt: "desc" },
-      take: 20, // Limit to recent 20 notifications
+      take: 20,
     });
 
     if (notifications.length === 0) {
-      // Auto seed for testing
       await prisma.notification.createMany({
         data: [
           {
@@ -55,7 +54,6 @@ export const markAsRead = async (req, res, next) => {
     const { id } = req.body;
 
     if (!id) {
-      // Mark all as read
       await prisma.notification.updateMany({
         where: { userId, isRead: false },
         data: { isRead: true },
