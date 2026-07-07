@@ -133,15 +133,30 @@ async function getById(id) {
 
 async function generateDraftPlan({ rabData, targetAmount }) {
   const aiUrl = process.env.AI_SERVICE_URL || "http://localhost:8000";
+  const aiToken = process.env.AI_INTERNAL_TOKEN || "";
+
+  const items = rabData.map(r => ({
+    name: r.item,
+    qty: r.qty,
+    unitPrice: r.harga
+  }));
+  const total = items.reduce((sum, i) => sum + (i.qty * i.unitPrice), 0);
+
+  let aiNotes = "Sistem telah merumuskan skema pencairan dana (milestones) berdasarkan best-practice untuk meminimalkan risiko. Porsi per-milestone memakai retensi progresif (porsi akhir terbesar).";
+
   try {
-    const res = await fetch(`${aiUrl}/plan-milestones`, {
+    const res = await fetch(`${aiUrl}/evaluate-rab`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ rabData, targetAmount }),
+      headers: { 
+        "Content-Type": "application/json",
+        "X-Internal-Token": aiToken
+      },
+      body: JSON.stringify({ items, total, targetAmount }),
     });
 
     if (res.ok) {
-      return await res.json();
+      const aiResult = await res.json();
+      aiNotes = `AI Review (Skor: ${aiResult.score}): ${aiResult.notes}`;
     }
   } catch (error) {
     console.warn("AI Microservice unreachable, falling back to mock plan", error.message);
@@ -152,8 +167,7 @@ async function generateDraftPlan({ rabData, targetAmount }) {
     advanceAmount,
     milestoneAmount: targetAmount - advanceAmount, 
     totalMilestones: 3, 
-    notes:
-      "Draf dihasilkan dari mock fallback karena AI service tidak dapat dihubungi. Porsi per-milestone memakai retensi progresif (porsi akhir terbesar).",
+    notes: aiNotes,
   };
 }
 
