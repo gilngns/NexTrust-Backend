@@ -31,6 +31,7 @@ const create = async ({
   foundationId,
   latitude,
   longitude,
+  izinPub,
 }) => {
   const foundation = await prisma.user.findUnique({
     where: { id: foundationId },
@@ -72,6 +73,7 @@ const create = async ({
       beneficiary,
       latitude,
       longitude,
+      izinPub,
       status: "ACTIVE",
       txHashCreate: onchain.txHash,
       milestones: {

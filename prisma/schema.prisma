@@ -38,6 +38,7 @@ model Campaign {
   rabCID          String?
   latitude        Float?
   longitude       Float?
+  izinPub         String?
   targetAmount    BigInt
   advanceAmount   BigInt
   milestoneAmount BigInt
