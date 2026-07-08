@@ -14,6 +14,12 @@ async function _serialize(campaign) {
       amount: d.amount.toString(),
     }));
   }
+  if (out.milestones) {
+    out.milestones = out.milestones.map((m) => ({
+      ...m,
+      amount: m.amount !== undefined && m.amount !== null ? m.amount.toString() : null,
+    }));
+  }
   return out;
 }
 
