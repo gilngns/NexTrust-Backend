@@ -33,6 +33,8 @@ const create = async ({
   longitude,
   izinPub,
   aiScore,
+  aiNotes,
+  rabData,
 }) => {
   const foundation = await prisma.user.findUnique({
     where: { id: foundationId },
@@ -75,6 +77,9 @@ const create = async ({
       latitude,
       longitude,
       izinPub,
+      aiScore,
+      aiNotes,
+      rabData,
       status: (aiScore !== undefined && aiScore < 85) ? "EVALUATING" : "ACTIVE",
       txHashCreate: onchain.txHash,
       milestones: {

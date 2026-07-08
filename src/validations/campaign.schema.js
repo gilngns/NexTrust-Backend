@@ -21,6 +21,9 @@ export const createCampaignSchema = z.object({
       imageUrl: z.string().optional(),
       latitude: z.number().optional(),
       longitude: z.number().optional(),
+      aiScore: z.number().optional(),
+      aiNotes: z.string().optional(),
+      rabData: z.any().optional(),
     })
     .refine((b) => b.advanceAmount <= b.targetAmount * 0.15, {
       message: "DP (advanceAmount) maksimal 15% dari target",

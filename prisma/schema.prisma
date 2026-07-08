@@ -39,6 +39,9 @@ model Campaign {
   latitude        Float?
   longitude       Float?
   izinPub         String?
+  aiScore         Int?
+  aiNotes         String?
+  rabData         Json?
   targetAmount    BigInt
   advanceAmount   BigInt
   milestoneAmount BigInt
