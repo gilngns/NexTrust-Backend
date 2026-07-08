@@ -142,6 +142,7 @@ async function generateDraftPlan({ rabData, targetAmount }) {
   const items = rabData.map(r => ({
     name: r.item,
     qty: r.qty,
+    unit: r.unit,
     unitPrice: r.harga
   }));
   const total = items.reduce((sum, i) => sum + (i.qty * i.unitPrice), 0);

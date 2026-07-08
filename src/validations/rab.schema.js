@@ -9,6 +9,7 @@ export const checkRabSchema = z.object({
         z.object({
           name: z.string().min(2, "Nama item minimal 2 karakter"),
           qty: z.number().positive("Kuantitas harus lebih besar dari 0"),
+          unit: z.string().min(1, "Satuan wajib diisi"),
           unitPrice: z.number().min(0, "Harga satuan tidak boleh negatif"),
         }),
       )
