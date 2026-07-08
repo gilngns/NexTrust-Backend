@@ -17,6 +17,7 @@ export const createCampaignSchema = z.object({
         .min(2, "Minimal 2 milestone")
         .max(6, "Maksimal 6 milestone"),
       rabCID: z.string().optional(),
+      izinPub: z.string().min(1, "Surat izin PUB wajib diisi"),
       imageUrl: z.string().optional(),
       latitude: z.number().optional(),
       longitude: z.number().optional(),
