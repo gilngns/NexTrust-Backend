@@ -3,7 +3,8 @@ import prisma from "../config/prisma.js";
 export async function getTransactions(req, res, next) {
   try {
     const whereClause = {
-      status: {
+      status: 
+      {
         in: ["PAID", "DEPOSITED", "PENDING"],
       }
     };
