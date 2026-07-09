@@ -34,7 +34,7 @@ export async function listFoundations(req, res, next) {
       id: f.id,
       name: f.name,
       email: f.email,
-      skKemenkumham: f.skKemenkumham || true,
+      skKemenkumham: f.skKemenkumham || null,
       izinPub: f.izinPub || null,
       isVerified: f.isVerified
     }));
