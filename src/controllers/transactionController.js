@@ -2,12 +2,20 @@ import prisma from "../config/prisma.js";
 
 export async function getTransactions(req, res, next) {
   try {
+    const whereClause = {
+      status: {
+        in: ["PAID", "DEPOSITED", "PENDING"],
+      }
+    };
+
+    if (req.user.role === "FOUNDATION") {
+      whereClause.campaign = {
+        foundationId: req.user.id,
+      };
+    }
+
     const donations = await prisma.donation.findMany({
-      where: {
-        status: {
-          in: ["PAID", "DEPOSITED"],
-        },
-      },
+      where: whereClause,
       include: {
         campaign: true,
       },
@@ -22,9 +30,11 @@ export async function getTransactions(req, res, next) {
         ? donation.paidAt.toISOString()
         : donation.createdAt.toISOString(),
       campaign: donation.campaign?.title || "Unknown Campaign",
-      amount: Number(donation.amount) / 1000000,
-      status: donation.status === "DEPOSITED" ? "Funds Disbursed" : "Success",
+      amount: Number(donation.amount),
+      status: donation.status === "DEPOSITED" ? "deposited" : donation.status === "PAID" ? "success" : donation.status === "PENDING" ? "pending" : "failed",
       method: "QRIS",
+      donorName: donation.donorName || "Hamba Allah",
+      donorAddress: donation.donorAddress || "-",
     }));
 
     res.json({
