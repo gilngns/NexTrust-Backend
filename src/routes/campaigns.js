@@ -102,4 +102,11 @@ router.put(
   asyncHandler(campaignController.approve),
 );
 
+router.put(
+  "/:id/reject",
+  authenticate,
+  authorize("DINSOS", "ADMIN"),
+  asyncHandler(campaignController.reject),
+);
+
 export default router;

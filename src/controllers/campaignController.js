@@ -150,3 +150,12 @@ export async function approve(req, res, next) {
     next(error);
   }
 }
+
+export async function reject(req, res, next) {
+  try {
+    const campaign = await campaignService.reject(req.params.id);
+    res.json({ ok: true, campaign });
+  } catch (error) {
+    next(error);
+  }
+}

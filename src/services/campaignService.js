@@ -206,4 +206,12 @@ async function approve(id) {
   return await _serialize(campaign);
 }
 
-export default { create, list, getById, generateDraftPlan, updateImage, approve };
+async function reject(id) {
+  const campaign = await prisma.campaign.update({
+    where: { id },
+    data: { status: "FROZEN", aiNotes: "Pengajuan ditolak oleh Dinsos." },
+  });
+  return await _serialize(campaign);
+}
+
+export default { create, list, getById, generateDraftPlan, updateImage, approve, reject };
