@@ -8,6 +8,7 @@ import systemRoutes from "./system.js";
 import transactionRoutes from "./transactions.js";
 import notificationRoutes from "./notifications.js";
 import uploadRoutes from "./uploadRouter.js";
+import donationRoutes from "./donations.js";
 
 const router = express.Router();
 
@@ -20,5 +21,6 @@ router.use("/webhooks", webhookRoutes);
 router.use("/transactions", transactionRoutes);
 router.use("/notifications", notificationRoutes);
 router.use("/upload", uploadRoutes);
+router.use("/donations", donationRoutes);
 
 export default router;
