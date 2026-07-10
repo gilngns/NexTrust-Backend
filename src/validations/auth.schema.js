@@ -33,11 +33,26 @@ export const updateProfileSchema = z.object({
 // ─── Donor (Mobile) ────────────────────────────────────────────────────────
 
 export const donorRegisterSchema = z.object({
-  body: z.object({
-    email: z.string().email("Format email tidak valid"),
-    password: z.string().min(6, "Password minimal 6 karakter"),
-    name: z.string().min(2, "Nama minimal 2 karakter"),
-  }),
+  body: z
+    .object({
+      name: z.string().min(2, "Nama minimal 2 karakter"),
+      email: z.string().email("Format email tidak valid"),
+      dateOfBirth: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/, "Format tanggal lahir harus YYYY-MM-DD")
+        .refine((val) => !isNaN(Date.parse(val)), "Tanggal lahir tidak valid"),
+      phoneNumber: z
+        .string()
+        .min(9, "Nomor telepon minimal 9 digit")
+        .max(12, "Nomor telepon maksimal 12 digit")
+        .regex(/^(\+62|62|0)[0-9]+$/, "Format nomor telepon tidak valid (contoh: 08123456789 atau +6281234567890)"),
+      password: z.string().min(6, "Password minimal 6 karakter"),
+      confirmPassword: z.string().min(1, "Konfirmasi password tidak boleh kosong"),
+    })
+    .refine((data) => data.password === data.confirmPassword, {
+      message: "Password dan konfirmasi password tidak cocok",
+      path: ["confirmPassword"],
+    }),
 });
 
 export const donorLoginSchema = z.object({

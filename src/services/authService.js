@@ -58,6 +58,8 @@ async function register({
   bankHolder,
   skKemenkumham,
   izinPub,
+  phoneNumber,
+  dateOfBirth,
 }) {
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) throw AppError.badRequest("Email sudah terdaftar");
@@ -67,7 +69,7 @@ async function register({
 
   let custodialAddress = null;
   let encryptedKey = null;
-  if (userRole === "FOUNDATION" || userRole === "DONOR") {
+  if (userRole === "FOUNDATION") {
     const w = await walletService.generate();
     custodialAddress = w.address;
     encryptedKey = w.encryptedKey;
@@ -86,6 +88,8 @@ async function register({
       bankHolder: bankHolder || null,
       skKemenkumham: skKemenkumham || null,
       izinPub: izinPub || null,
+      phoneNumber: phoneNumber || null,
+      dateOfBirth: dateOfBirth || null,
     },
   });
   return await _sanitize(user);
@@ -153,10 +157,18 @@ async function listFoundations() {
 // ─── Donor Auth (Mobile) ───────────────────────────────────────────────────
 
 /**
- * Register donatur baru — selalu role DONOR, auto-buat custodial wallet.
+ * Register donatur baru — selalu role DONOR.
+ * `confirmPassword` sengaja tidak diteruskan, sudah divalidasi di schema layer.
  */
-async function donorRegister({ email, password, name }) {
-  return register({ email, password, name, role: "DONOR" });
+async function donorRegister({ email, password, name, phoneNumber, dateOfBirth }) {
+  return register({
+    email,
+    password,
+    name,
+    role: "DONOR",
+    phoneNumber,
+    dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
+  });
 }
 
 /**

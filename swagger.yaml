@@ -41,10 +41,6 @@ components:
         role:
           type: string
           example: DONOR
-        custodialAddress:
-          type: string
-          description: Alamat wallet custodial donatur (disembunyikan di response, hanya untuk referensi on-chain)
-          example: "0xabc123..."
         isVerified:
           type: boolean
           example: false
@@ -454,8 +450,8 @@ paths:
         - Donatur
       summary: Registrasi donatur baru
       description: |
-        Khusus untuk mobile app. Role selalu `DONOR`,
-        custodial wallet dibuat otomatis.
+        Khusus untuk mobile app. Role selalu `DONOR`.
+        `confirmPassword` divalidasi di backend — harus sama dengan `password`.
       requestBody:
         required: true
         content:
@@ -463,19 +459,35 @@ paths:
             schema:
               type: object
               required:
-                - email
-                - password
                 - name
+                - email
+                - dateOfBirth
+                - phoneNumber
+                - password
+                - confirmPassword
               properties:
-                email:
-                  type: string
-                  example: budi@mail.com
-                password:
-                  type: string
-                  example: rahasia123
                 name:
                   type: string
-                  example: Budi Santoso
+                  example: Dale Carnegie
+                email:
+                  type: string
+                  example: dale@gmail.com
+                dateOfBirth:
+                  type: string
+                  format: date
+                  description: Format YYYY-MM-DD
+                  example: "2004-03-16"
+                phoneNumber:
+                  type: string
+                  description: Format Indonesia (08xxx, +62xxx, atau 62xxx)
+                  example: "+6283145237891"
+                password:
+                  type: string
+                  example: "•••••••"
+                confirmPassword:
+                  type: string
+                  description: Harus sama dengan password
+                  example: "•••••••"
       responses:
         "201":
           description: Registrasi berhasil

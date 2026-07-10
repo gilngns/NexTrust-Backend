@@ -21,6 +21,8 @@ model User {
   bankName         String?
   bankAccountNo    String?
   bankHolder       String?
+  phoneNumber      String?
+  dateOfBirth      DateTime?
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
   campaigns        Campaign[]
