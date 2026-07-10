@@ -44,7 +44,7 @@ export const donorRegisterSchema = z.object({
       phoneNumber: z
         .string()
         .min(9, "Nomor telepon minimal 9 digit")
-        .max(12, "Nomor telepon maksimal 12 digit")
+        .max(15, "Nomor telepon maksimal 15 karakter")
         .regex(/^(\+62|62|0)[0-9]+$/, "Format nomor telepon tidak valid (contoh: 08123456789 atau +6281234567890)"),
       password: z.string().min(6, "Password minimal 6 karakter"),
       confirmPassword: z.string().min(1, "Konfirmasi password tidak boleh kosong"),
