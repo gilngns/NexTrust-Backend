@@ -1,117 +1,135 @@
-import { ethers } from "ethers";
-import AppError from "../utils/AppError.js";
-import prisma from "../config/prisma.js";
-import midtransService from "./midtransService.js";
-import tokenService from "./tokenService.js";
-import contractService from "./contractService.js";
-import walletService from "./walletService.js";
+import { jest } from "@jest/globals";
 
-const XIDR_DECIMALS = 6;
+jest.unstable_mockModule("ethers", () => ({
+  ethers: {
+    parseUnits: jest.fn(),
+    formatUnits: jest.fn(),
+  },
+}));
 
-async function initiate({ campaignId, donorName, amountRupiah }) {
-  const campaign = await prisma.campaign.findUnique({
-    where: { id: campaignId },
-  });
-  if (!campaign) throw AppError.notFound();
-  const donorWallet = await walletService.generate();
-
-  const orderId = `NEXTRUST-${campaign.onChainId}-${Date.now()}`;
-  const qris = await midtransService.createQris(orderId, amountRupiah);
-
-  const amountToken = ethers.parseUnits(amountRupiah.toString(), XIDR_DECIMALS);
-
-  const donation = await prisma.donation.create({
-    data: {
-      campaignId,
-      donorName,
-      donorAddress: donorWallet.address,
-      amount: amountToken,
-      status: "PENDING",
-      orderId,
-      qrisUrl: qris.qrisUrl,
+jest.unstable_mockModule("../../src/config/prisma.js", () => ({
+  default: {
+    campaign: {
+      findUnique: jest.fn(),
     },
+    donation: {
+      create: jest.fn(),
+      findUnique: jest.fn(),
+      update: jest.fn(),
+      findMany: jest.fn(),
+    },
+  },
+}));
+
+jest.unstable_mockModule("../../src/services/midtransService.js", () => ({
+  default: {
+    createQris: jest.fn(),
+    verifySignature: jest.fn(),
+    interpretStatus: jest.fn(),
+  },
+}));
+
+jest.unstable_mockModule("../../src/services/tokenService.js", () => ({
+  default: {
+    mint: jest.fn(),
+    approveEscrow: jest.fn(),
+    backendWallet: { address: "0xBackend" },
+  },
+}));
+
+jest.unstable_mockModule("../../src/services/contractService.js", () => ({
+  default: {
+    depositXIDR: jest.fn(),
+  },
+}));
+
+jest.unstable_mockModule("../../src/services/walletService.js", () => ({
+  default: {
+    generate: jest.fn(),
+  },
+}));
+
+const prisma = (await import("../../src/config/prisma.js")).default;
+const midtransService = (await import("../../src/services/midtransService.js")).default;
+const tokenService = (await import("../../src/services/tokenService.js")).default;
+const contractService = (await import("../../src/services/contractService.js")).default;
+const walletService = (await import("../../src/services/walletService.js")).default;
+const donationService = (await import("../../src/services/donationService.js")).default;
+const { ethers } = await import("ethers");
+
+describe("donationService", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
   });
 
-  return {
-    donationId: donation.id,
-    orderId,
-    qrisUrl: qris.qrisUrl,
-    amountRupiah,
-  };
-}
+  describe("initiate", () => {
+    it("should initiate donation and return order details", async () => {
+      prisma.campaign.findUnique.mockResolvedValue({ id: "camp-1", onChainId: "chain-1" });
+      walletService.generate.mockResolvedValue({ address: "0xDonor" });
+      midtransService.createQris.mockResolvedValue({ qrisUrl: "http://qris.url" });
+      ethers.parseUnits.mockReturnValue(BigInt(100000000));
+      prisma.donation.create.mockResolvedValue({
+        id: "don-1",
+      });
 
-async function handleWebhook(notification) {
-  if (!(await midtransService.verifySignature(notification))) {
-    throw AppError.unauthorized();
-  }
+      const payload = { campaignId: "camp-1", donorName: "Alice", amountRupiah: 100000 };
+      const result = await donationService.initiate(payload);
 
-  const status = await midtransService.interpretStatus(notification);
-  const donation = await prisma.donation.findUnique({
-    where: { orderId: notification.order_id },
-  });
-  if (!donation) throw AppError.notFound();
-
-  if (donation.status === "DEPOSITED") {
-    return { status: "already_processed" };
-  }
-
-  if (status !== "PAID") {
-    await prisma.donation.update({
-      where: { id: donation.id },
-      data: { status },
+      expect(prisma.campaign.findUnique).toHaveBeenCalled();
+      expect(walletService.generate).toHaveBeenCalled();
+      expect(midtransService.createQris).toHaveBeenCalled();
+      expect(ethers.parseUnits).toHaveBeenCalledWith("100000", 6);
+      expect(prisma.donation.create).toHaveBeenCalled();
+      expect(result.qrisUrl).toBe("http://qris.url");
+      expect(result.amountRupiah).toBe(100000);
+      expect(result).toHaveProperty("orderId");
     });
-    return { status };
-  }
-
-  await prisma.donation.update({
-    where: { id: donation.id },
-    data: { status: "PAID", paidAt: new Date() },
   });
 
-  const campaign = await prisma.campaign.findUnique({
-    where: { id: donation.campaignId },
+  describe("handleWebhook", () => {
+    const mockNotification = { order_id: "order-1" };
+
+    it("should throw unauthorized if signature verification fails", async () => {
+      midtransService.verifySignature.mockResolvedValue(false);
+      await expect(donationService.handleWebhook(mockNotification)).rejects.toThrow("Unauthorized");
+    });
+
+    it("should process successful payment and deposit on-chain", async () => {
+      midtransService.verifySignature.mockResolvedValue(true);
+      midtransService.interpretStatus.mockResolvedValue("PAID");
+      prisma.donation.findUnique.mockResolvedValue({
+        id: "don-1",
+        status: "PENDING",
+        campaignId: "camp-1",
+        amount: BigInt(100000000),
+        donorAddress: "0xDonor",
+      });
+      prisma.campaign.findUnique.mockResolvedValue({ id: "camp-1", onChainId: "chain-1" });
+      ethers.formatUnits.mockReturnValue("100");
+      tokenService.mint.mockResolvedValue();
+      tokenService.approveEscrow.mockResolvedValue();
+      contractService.depositXIDR.mockResolvedValue({ txHash: "0xHash" });
+      prisma.donation.update.mockResolvedValue({});
+
+      const result = await donationService.handleWebhook(mockNotification);
+
+      expect(result.status).toBe("DEPOSITED");
+      expect(result.txHash).toBe("0xHash");
+      expect(tokenService.mint).toHaveBeenCalled();
+      expect(contractService.depositXIDR).toHaveBeenCalled();
+      expect(prisma.donation.update).toHaveBeenCalledTimes(2); 
+    });
   });
 
-  const amountHuman = ethers.formatUnits(donation.amount, XIDR_DECIMALS);
-  await tokenService.mint(tokenService.backendWallet.address, amountHuman);
-  await tokenService.approveEscrow(amountHuman);
+  describe("listByCampaign", () => {
+    it("should list donations for a campaign and serialize amount", async () => {
+      prisma.donation.findMany.mockResolvedValue([
+        { id: "don-1", amount: BigInt(1000) }
+      ]);
 
-  const dep = await contractService.depositXIDR({
-    campaignIdStr: campaign.onChainId,
-    amount: donation.amount,
-    donorAddress: donation.donorAddress,
+      const result = await donationService.listByCampaign("camp-1");
+      expect(prisma.donation.findMany).toHaveBeenCalled();
+      expect(result[0].amount).toBe("1000"); 
+    });
   });
-
-  await prisma.donation.update({
-    where: { id: donation.id },
-    data: { status: "DEPOSITED", txHashDeposit: dep.txHash },
-  });
-
-  return { status: "DEPOSITED", txHash: dep.txHash };
-}
-
-async function listByCampaign(campaignId) {
-  const donations = await prisma.donation.findMany({
-    where: { campaignId },
-    orderBy: { createdAt: "desc" },
-  });
-  return donations.map((d) => ({ ...d, amount: d.amount.toString() }));
-}
-
-/**
- * Dipakai frontend untuk polling status pembayaran (mis. auto-lanjut ke
- * layar sukses begitu status berubah jadi DEPOSITED), tanpa perlu webhook
- * langsung ke browser. Sengaja hanya mengembalikan field minimal — tidak
- * ada data sensitif donatur lain yang bocor lewat endpoint publik ini.
- */
-async function getStatusByOrderId(orderId) {
-  const donation = await prisma.donation.findUnique({ where: { orderId } });
-  if (!donation) throw AppError.notFound("Donasi tidak ditemukan.");
-  return {
-    orderId: donation.orderId,
-    status: donation.status,
-    txHash: donation.txHashDeposit || null,
-  };
-}
-
-export default { initiate, handleWebhook, listByCampaign, getStatusByOrderId };
+});

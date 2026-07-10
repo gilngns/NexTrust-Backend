@@ -98,4 +98,20 @@ async function listByCampaign(campaignId) {
   return donations.map((d) => ({ ...d, amount: d.amount.toString() }));
 }
 
-export default { initiate, handleWebhook, listByCampaign };
+/**
+ * Dipakai frontend untuk polling status pembayaran (mis. auto-lanjut ke
+ * layar sukses begitu status berubah jadi DEPOSITED), tanpa perlu webhook
+ * langsung ke browser. Sengaja hanya mengembalikan field minimal — tidak
+ * ada data sensitif donatur lain yang bocor lewat endpoint publik ini.
+ */
+async function getStatusByOrderId(orderId) {
+  const donation = await prisma.donation.findUnique({ where: { orderId } });
+  if (!donation) throw AppError.notFound("Donasi tidak ditemukan.");
+  return {
+    orderId: donation.orderId,
+    status: donation.status,
+    txHash: donation.txHashDeposit || null,
+  };
+}
+
+export default { initiate, handleWebhook, listByCampaign, getStatusByOrderId };
