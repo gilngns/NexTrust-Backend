@@ -21,10 +21,10 @@ export async function health(req, res, next) {
 
 export async function simulatePayment(req, res, next) {
   try {
-    if (config.nodeEnv === "production") {
-      return next(AppError.forbidden("Simulator pembayaran dinonaktifkan di production."));
-    }
-
+    // Untuk keperluan demo/testing portofolio, simulator kita buka di production
+    // if (config.nodeEnv === "production") {
+    //   return next(AppError.forbidden("Simulator pembayaran dinonaktifkan di production."));
+    // }
     const { orderId } = req.params;
     const donation = await prisma.donation.findUnique({ where: { orderId } });
     if (!donation) throw AppError.notFound("Donasi dengan order_id tersebut tidak ditemukan.");
