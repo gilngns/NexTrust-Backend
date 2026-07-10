@@ -89,7 +89,7 @@ describe("authService", () => {
     it("should throw badRequest if user already exists", async () => {
       prisma.user.findUnique.mockResolvedValue({ id: "user-existing" });
 
-      await expect(authService.register(validPayload)).rejects.toThrow("Bad Request");
+      await expect(authService.register(validPayload)).rejects.toThrow("Email sudah terdaftar");
     });
   });
 
