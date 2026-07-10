@@ -513,9 +513,18 @@ paths:
         - Donatur
       summary: Login donatur — mengembalikan access token + refresh token
       description: |
-        - **accessToken**: JWT pendek (default 15 menit), kirim di header `Authorization: Bearer`
+        - **accessToken**: JWT pendek (default 15 menit), kirim di header `Authorization: Bearer <token>`
         - **refreshToken**: Token opaque panjang (default 30 hari), simpan di **Secure Storage**.
-          Gunakan di `/donor/refresh` untuk mendapat accessToken baru.
+
+        ### Flow Refresh Token (Best Practice — OAuth 2.0)
+        ```
+        1. Simpan accessToken (memory) + refreshToken (Secure Storage)
+        2. Setiap request → kirim Authorization: Bearer <accessToken>
+        3. Dapat 401? → panggil POST /donor/refresh dengan refreshToken
+        4. Dapat accessToken + refreshToken baru → simpan, retry request original
+        5. /donor/refresh juga 401? → paksa logout, minta user login ulang
+        ```
+        Implementasi di mobile cukup **satu interceptor** yang menangkap 401.
       requestBody:
         required: true
         content:
@@ -528,10 +537,10 @@ paths:
               properties:
                 email:
                   type: string
-                  example: budi@mail.com
+                  example: dale@gmail.com
                 password:
                   type: string
-                  example: rahasia123
+                  example: "•••••••"
       responses:
         "200":
           description: Login berhasil
@@ -545,7 +554,7 @@ paths:
                     example: true
                   accessToken:
                     type: string
-                    description: JWT (15 menit). Kirim di header Authorization Bearer.
+                    description: JWT (15 menit). Kirim di header `Authorization: Bearer`.
                     example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
                   refreshToken:
                     type: string
@@ -565,9 +574,12 @@ paths:
         - Donatur
       summary: Refresh — tukar refresh token → access token baru
       description: |
-        Gunakan saat `accessToken` expired. Menerapkan **token rotation**:
-        refresh token lama langsung di-revoke dan diganti yang baru.
-        Selalu simpan `refreshToken` terbaru yang dikembalikan.
+        Panggil endpoint ini saat menerima **401 Unauthorized** dari request lain.
+        Menerapkan **token rotation**: refresh token lama langsung di-revoke dan
+        diganti yang baru — selalu simpan `refreshToken` terbaru yang dikembalikan.
+
+        Jika endpoint ini juga mengembalikan 401, berarti sesi sudah benar-benar
+        expired → paksa logout dan minta user login ulang.
       requestBody:
         required: true
         content:
@@ -593,13 +605,14 @@ paths:
                     example: true
                   accessToken:
                     type: string
+                    description: Simpan, gunakan untuk request selanjutnya.
                     example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
                   refreshToken:
                     type: string
-                    description: Refresh token BARU — simpan, token lama sudah tidak valid.
+                    description: Refresh token BARU — simpan ke Secure Storage, token lama sudah di-revoke.
                     example: b7c2de3f4a...
         "401":
-          description: Refresh token tidak valid / sudah expired / sudah di-revoke
+          description: Refresh token tidak valid / sudah expired / sudah di-revoke → paksa logout
           content:
             application/json:
               schema:
