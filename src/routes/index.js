@@ -8,7 +8,7 @@ import systemRoutes from "./system.js";
 import transactionRoutes from "./transactions.js";
 import notificationRoutes from "./notifications.js";
 import uploadRoutes from "./uploadRouter.js";
-import donationRoutes from "./donations.js";
+import donationRoutes from "./donation.js";
 
 const router = express.Router();
 
