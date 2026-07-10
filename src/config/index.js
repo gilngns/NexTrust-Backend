@@ -35,6 +35,8 @@ const config = {
 
   jwtSecret: requiredInProd("JWT_SECRET", "dev-secret-ganti-di-produksi"),
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || "15m",
+  jwtRefreshSecret: requiredInProd("JWT_REFRESH_SECRET", "dev-refresh-secret-ganti-di-produksi"),
+  jwtRefreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "30d",
 
   walletEncryptionSecret: requiredInProd(
     "WALLET_ENCRYPTION_SECRET",

@@ -8,24 +8,26 @@ datasource db {
 }
 
 model User {
-  id               String         @id @default(cuid())
-  email            String         @unique
+  id               String          @id @default(cuid())
+  email            String          @unique
   passwordHash     String
   name             String
-  role             UserRole       @default(FOUNDATION)
-  custodialAddress String?        @unique
+  role             UserRole        @default(FOUNDATION)
+  custodialAddress String?         @unique
   encryptedKey     String?
   skKemenkumham    String?
   izinPub          String?
-  isVerified       Boolean        @default(false)
+  isVerified       Boolean         @default(false)
   bankName         String?
   bankAccountNo    String?
   bankHolder       String?
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
   campaigns        Campaign[]
   notifications    Notification[]
   payouts          Payout[]
+  refreshTokens    RefreshToken[]
+  donorDonations   Donation[]      @relation("DonorDonations")
 }
 
 model Campaign {
@@ -61,6 +63,7 @@ model Campaign {
 model Donation {
   id            String         @id @default(cuid())
   campaignId    String
+  donorId       String?
   donorName     String?
   donorAddress  String
   amount        BigInt
@@ -72,6 +75,7 @@ model Donation {
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   campaign      Campaign       @relation(fields: [campaignId], references: [id])
+  donor         User?          @relation("DonorDonations", fields: [donorId], references: [id])
 }
 
 model Milestone {
@@ -111,6 +115,16 @@ model Payout {
   updatedAt     DateTime     @updatedAt
   campaign      Campaign     @relation(fields: [campaignId], references: [id])
   foundation    User         @relation(fields: [foundationId], references: [id])
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  revoked   Boolean  @default(false)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
 }
 
 model RabCheck {

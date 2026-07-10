@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import { promisify } from "util";
+import crypto from "crypto";
 import AppError from "../utils/AppError.js";
 import bcrypt from "bcryptjs";
 import prisma from "../config/prisma.js";
@@ -14,6 +15,39 @@ async function _sanitize(user) {
   return rest;
 }
 
+/**
+ * Buat access token (jangka pendek) untuk semua role.
+ */
+async function _signAccessToken(userId, role) {
+  return signAsync(
+    { userId, role },
+    config.jwtSecret,
+    { expiresIn: config.jwtExpiresIn },
+  );
+}
+
+/**
+ * Buat refresh token opaque (random), simpan ke DB, return string-nya.
+ * Refresh token disimpan di DB agar bisa di-revoke saat logout.
+ */
+async function _createRefreshToken(userId) {
+  const token = crypto.randomBytes(64).toString("hex");
+  const expiresAt = new Date(Date.now() + _parseExpiry(config.jwtRefreshExpiresIn));
+  await prisma.refreshToken.create({ data: { token, userId, expiresAt } });
+  return token;
+}
+
+/**
+ * Parse expiry string seperti "30d", "7d", "24h" ke milliseconds.
+ */
+function _parseExpiry(expiry) {
+  const match = expiry.match(/^(\d+)([smhd])$/);
+  if (!match) throw new Error(`Format expiry tidak valid: ${expiry}`);
+  const [, num, unit] = match;
+  const multipliers = { s: 1000, m: 60000, h: 3600000, d: 86400000 };
+  return parseInt(num) * multipliers[unit];
+}
+
 async function register({
   email,
   password,
@@ -26,7 +60,7 @@ async function register({
   izinPub,
 }) {
   const existing = await prisma.user.findUnique({ where: { email } });
-  if (existing) throw AppError.badRequest();
+  if (existing) throw AppError.badRequest("Email sudah terdaftar");
 
   const passwordHash = await bcrypt.hash(password, 10);
   const userRole = role || "FOUNDATION";
@@ -64,11 +98,7 @@ async function login({ email, password }) {
   const ok = await bcrypt.compare(password, user.passwordHash);
   if (!ok) throw AppError.unauthorized();
 
-  const token = await signAsync(
-    { userId: user.id, role: user.role },
-    config.jwtSecret,
-    { expiresIn: config.jwtExpiresIn },
-  );
+  const token = await _signAccessToken(user.id, user.role);
   return { token, user: await _sanitize(user) };
 }
 
@@ -120,6 +150,96 @@ async function listFoundations() {
   });
 }
 
+// ─── Donor Auth (Mobile) ───────────────────────────────────────────────────
+
+/**
+ * Register donatur baru — selalu role DONOR, auto-buat custodial wallet.
+ */
+async function donorRegister({ email, password, name }) {
+  return register({ email, password, name, role: "DONOR" });
+}
+
+/**
+ * Login donatur → kembalikan access token (15m) + refresh token (30d).
+ * Refresh token disimpan di DB agar bisa di-revoke saat logout.
+ */
+async function donorLogin({ email, password }) {
+  const user = await prisma.user.findUnique({ where: { email } });
+  if (!user || user.role !== "DONOR") throw AppError.unauthorized();
+
+  const ok = await bcrypt.compare(password, user.passwordHash);
+  if (!ok) throw AppError.unauthorized();
+
+  const accessToken = await _signAccessToken(user.id, user.role);
+  const refreshToken = await _createRefreshToken(user.id);
+
+  return { accessToken, refreshToken, user: await _sanitize(user) };
+}
+
+/**
+ * Tukar refresh token yang valid → access token baru + refresh token baru (rotation).
+ * Token lama langsung di-revoke.
+ */
+async function refreshAccessToken(refreshToken) {
+  const stored = await prisma.refreshToken.findUnique({ where: { token: refreshToken } });
+
+  if (!stored || stored.revoked || stored.expiresAt < new Date()) {
+    throw AppError.unauthorized("Refresh token tidak valid atau sudah kadaluarsa");
+  }
+
+  // Revoke token lama (rotation — mencegah reuse)
+  await prisma.refreshToken.update({
+    where: { id: stored.id },
+    data: { revoked: true },
+  });
+
+  const user = await prisma.user.findUnique({ where: { id: stored.userId } });
+  if (!user) throw AppError.unauthorized();
+
+  const accessToken = await _signAccessToken(user.id, user.role);
+  const newRefreshToken = await _createRefreshToken(user.id);
+
+  return { accessToken, refreshToken: newRefreshToken };
+}
+
+/**
+ * Logout donatur — revoke refresh token yang dikirim.
+ */
+async function logoutDonor(refreshToken) {
+  const stored = await prisma.refreshToken.findUnique({ where: { token: refreshToken } });
+  if (!stored || stored.revoked) return; // idempotent — tidak error kalau sudah revoked
+
+  await prisma.refreshToken.update({
+    where: { id: stored.id },
+    data: { revoked: true },
+  });
+}
+
+/**
+ * Profil donatur yang sedang login.
+ */
+async function getMyProfile(userId) {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) throw AppError.notFound("User tidak ditemukan");
+  return await _sanitize(user);
+}
+
+/**
+ * Riwayat donasi donatur yang sedang login.
+ */
+async function getMyDonations(userId) {
+  const donations = await prisma.donation.findMany({
+    where: { donorId: userId },
+    orderBy: { createdAt: "desc" },
+    include: {
+      campaign: {
+        select: { id: true, title: true, imageUrl: true, status: true },
+      },
+    },
+  });
+  return donations.map((d) => ({ ...d, amount: d.amount.toString() }));
+}
+
 export default {
   register,
   login,
@@ -127,4 +247,10 @@ export default {
   verifyFoundation,
   listFoundations,
   updateProfile,
+  donorRegister,
+  donorLogin,
+  refreshAccessToken,
+  logoutDonor,
+  getMyProfile,
+  getMyDonations,
 };
