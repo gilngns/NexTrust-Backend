@@ -554,7 +554,7 @@ paths:
                     example: true
                   accessToken:
                     type: string
-                    description: JWT (15 menit). Kirim di header `Authorization: Bearer`.
+                    description: "JWT (15 menit). Kirim di header Authorization: Bearer."
                     example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
                   refreshToken:
                     type: string
