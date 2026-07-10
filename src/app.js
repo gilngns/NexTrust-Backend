@@ -32,9 +32,9 @@ app.use(
 );
 
 const corsOptions = {
-  origin: process.env.FRONTEND_ORIGIN || "*",
+  origin: "*", // Mengizinkan semua origin (Dashboard Web & Mobile App)
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Refresh-Token"],
 };
 app.use(cors(corsOptions));
 app.options("*", cors(corsOptions)); 
