@@ -26,11 +26,38 @@ components:
         error:
           type: string
           example: Pesan kesalahan
+    DonorUser:
+      type: object
+      properties:
+        id:
+          type: string
+          example: clx1234abc
+        email:
+          type: string
+          example: budi@mail.com
+        name:
+          type: string
+          example: Budi Santoso
+        role:
+          type: string
+          example: DONOR
+        custodialAddress:
+          type: string
+          description: Alamat wallet custodial donatur (disembunyikan di response, hanya untuk referensi on-chain)
+          example: "0xabc123..."
+        isVerified:
+          type: boolean
+          example: false
+        createdAt:
+          type: string
+          format: date-time
 tags:
   - name: Health
     description: Status koneksi
   - name: Auth
-    description: Registrasi & login
+    description: Registrasi & login (Yayasan / Dinsos / Admin)
+  - name: Donatur
+    description: Auth donatur untuk mobile app (register, login, refresh token)
   - name: Campaign
     description: Manajemen campaign donasi
   - name: RAB
@@ -421,6 +448,271 @@ paths:
           description: Token JWT
         "401":
           description: Kredensial salah
+  /api/auth/donor/register:
+    post:
+      tags:
+        - Donatur
+      summary: Registrasi donatur baru
+      description: |
+        Khusus untuk mobile app. Role selalu `DONOR`,
+        custodial wallet dibuat otomatis.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+                - name
+              properties:
+                email:
+                  type: string
+                  example: budi@mail.com
+                password:
+                  type: string
+                  example: rahasia123
+                name:
+                  type: string
+                  example: Budi Santoso
+      responses:
+        "201":
+          description: Registrasi berhasil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+                  user:
+                    $ref: "#/components/schemas/DonorUser"
+        "400":
+          description: Email sudah terdaftar / validasi gagal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/auth/donor/login:
+    post:
+      tags:
+        - Donatur
+      summary: Login donatur — mengembalikan access token + refresh token
+      description: |
+        - **accessToken**: JWT pendek (default 15 menit), kirim di header `Authorization: Bearer`
+        - **refreshToken**: Token opaque panjang (default 30 hari), simpan di **Secure Storage**.
+          Gunakan di `/donor/refresh` untuk mendapat accessToken baru.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  example: budi@mail.com
+                password:
+                  type: string
+                  example: rahasia123
+      responses:
+        "200":
+          description: Login berhasil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+                  accessToken:
+                    type: string
+                    description: JWT (15 menit). Kirim di header Authorization Bearer.
+                    example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                  refreshToken:
+                    type: string
+                    description: Token opaque (30 hari). Simpan di Secure Storage.
+                    example: a3f9bc2e1d...
+                  user:
+                    $ref: "#/components/schemas/DonorUser"
+        "401":
+          description: Kredensial salah atau bukan akun Donatur
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/auth/donor/refresh:
+    post:
+      tags:
+        - Donatur
+      summary: Refresh — tukar refresh token → access token baru
+      description: |
+        Gunakan saat `accessToken` expired. Menerapkan **token rotation**:
+        refresh token lama langsung di-revoke dan diganti yang baru.
+        Selalu simpan `refreshToken` terbaru yang dikembalikan.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refreshToken
+              properties:
+                refreshToken:
+                  type: string
+                  example: a3f9bc2e1d...
+      responses:
+        "200":
+          description: Token baru berhasil diterbitkan
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+                  accessToken:
+                    type: string
+                    example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                  refreshToken:
+                    type: string
+                    description: Refresh token BARU — simpan, token lama sudah tidak valid.
+                    example: b7c2de3f4a...
+        "401":
+          description: Refresh token tidak valid / sudah expired / sudah di-revoke
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/auth/donor/logout:
+    post:
+      tags:
+        - Donatur
+      summary: Logout — revoke refresh token
+      description: |
+        Menonaktifkan refresh token sehingga tidak bisa dipakai lagi.
+        Access token yang masih aktif tetap valid sampai expired (15 menit),
+        namun tidak bisa di-refresh lagi.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refreshToken
+              properties:
+                refreshToken:
+                  type: string
+                  example: a3f9bc2e1d...
+      responses:
+        "200":
+          description: Logout berhasil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Logout berhasil
+  /api/auth/donor/me:
+    get:
+      tags:
+        - Donatur
+      summary: Profil donatur yang sedang login
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Profil berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+                  user:
+                    $ref: "#/components/schemas/DonorUser"
+        "401":
+          description: Token tidak valid
+        "403":
+          description: Bukan akun Donatur
+  /api/auth/donor/donations:
+    get:
+      tags:
+        - Donatur
+      summary: Riwayat donasi donatur yang sedang login
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Daftar donasi berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+                  donations:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          example: clx1234abc
+                        amount:
+                          type: string
+                          description: Jumlah dalam satuan token (string karena BigInt)
+                          example: "50000000000"
+                        status:
+                          type: string
+                          enum: [PENDING, PAID, DEPOSITED, FAILED, EXPIRED]
+                          example: DEPOSITED
+                        orderId:
+                          type: string
+                          example: NEXTRUST-camp-001-1720000000000
+                        paidAt:
+                          type: string
+                          format: date-time
+                          nullable: true
+                        createdAt:
+                          type: string
+                          format: date-time
+                        campaign:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                            title:
+                              type: string
+                              example: Bantuan Air Bersih
+                            imageUrl:
+                              type: string
+                              nullable: true
+                            status:
+                              type: string
+                              example: ACTIVE
+        "401":
+          description: Token tidak valid
+        "403":
+          description: Bukan akun Donatur
   /api/webhooks/midtrans:
     post:
       tags:
