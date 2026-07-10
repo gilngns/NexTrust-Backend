@@ -32,7 +32,7 @@ app.use(
 );
 
 const corsOptions = {
-  origin: "*", // Mengizinkan semua origin (Dashboard Web & Mobile App)
+  origin: "*", 
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization", "X-Refresh-Token"],
 };
