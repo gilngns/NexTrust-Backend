@@ -43,3 +43,12 @@ export async function listFoundations(req, res, next) {
     next(error);
   }
 }
+
+export async function updateMe(req, res, next) {
+  try {
+    const user = await authService.updateProfile(req.user.userId, req.body);
+    res.json({ ok: true, user });
+  } catch (error) {
+    next(error);
+  }
+}

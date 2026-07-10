@@ -3,6 +3,7 @@ import AppError from "../utils/AppError.js";
 import prisma from "../config/prisma.js";
 import contractService from "./contractService.js";
 import oracleService from "./oracleService.js";
+import payoutService from "./payoutService.js";
 import { calculateDistance } from "../utils/haversine.js";
 
 const APPROVE_THRESHOLD = 85;
@@ -107,7 +108,28 @@ async function releaseAdvance(campaignId) {
     where: { id: campaignId },
     data: { status: "ADVANCE_PAID" },
   });
-  return { txHash: onchain.txHash };
+
+  // On-chain sudah sukses & tidak bisa dibatalkan — kegagalan di sisi
+  // pencairan rupiah TIDAK BOLEH membuat response ini gagal/throw. Cukup
+  // dilaporkan sebagai warning; payout tetap tercatat berstatus PENDING
+  // dan bisa di-retry manual lewat endpoint payout kalau perlu.
+  let payout = null;
+  let payoutWarning = null;
+  try {
+    payout = await payoutService.autoDisburse({
+      campaignId,
+      amountUnits: campaign.advanceAmount,
+      label: "Uang Muka",
+    });
+  } catch (err) {
+    payoutWarning = err.message;
+    console.error(
+      `[milestoneService] autoDisburse uang muka gagal untuk campaign ${campaignId}:`,
+      err,
+    );
+  }
+
+  return { txHash: onchain.txHash, payout, payoutWarning };
 }
 
 async function release({ campaignId, index }) {
@@ -121,7 +143,26 @@ async function release({ campaignId, index }) {
     where: { campaignId_index: { campaignId, index } },
     data: { status: "RELEASED", txHashRelease: onchain.txHash },
   });
-  return { ...milestone, txHash: onchain.txHash };
+
+  // Sama seperti releaseAdvance: on-chain sudah final, jadi kegagalan
+  // pencairan rupiah tidak boleh menggagalkan response release ini.
+  let payout = null;
+  let payoutWarning = null;
+  try {
+    payout = await payoutService.autoDisburse({
+      campaignId,
+      amountUnits: milestone.amount,
+      label: `Milestone #${index + 1}`,
+    });
+  } catch (err) {
+    payoutWarning = err.message;
+    console.error(
+      `[milestoneService] autoDisburse milestone ${index} gagal untuk campaign ${campaignId}:`,
+      err,
+    );
+  }
+
+  return { ...milestone, txHash: onchain.txHash, payout, payoutWarning };
 }
 
 export default { submit, submitScore, releaseAdvance, release };

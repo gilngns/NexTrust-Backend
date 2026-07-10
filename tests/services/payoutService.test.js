@@ -3,6 +3,21 @@ import { jest } from "@jest/globals";
 jest.unstable_mockModule("ethers", () => ({
   ethers: {
     formatUnits: jest.fn().mockReturnValue("100"),
+    // payoutService kini meng-import tokenService (untuk burnFromFoundation),
+    // yang saat di-load memanggil new ethers.JsonRpcProvider/Wallet/Contract
+    // di top-level modul — jadi harus ikut di-mock di sini juga, walau
+    // tidak dipakai langsung oleh test-test payoutService di bawah.
+    JsonRpcProvider: jest.fn().mockImplementation(() => ({})),
+    Wallet: jest.fn().mockImplementation(() => ({ address: "0xBackendWallet" })),
+    Contract: jest.fn().mockImplementation(() => ({
+      decimals: jest.fn().mockResolvedValue(6),
+      owner: jest.fn().mockResolvedValue("0xBackendWallet"),
+      balanceOf: jest.fn().mockResolvedValue(BigInt(0)),
+      mint: jest.fn(),
+      approve: jest.fn(),
+      burn: jest.fn(),
+    })),
+    parseUnits: jest.fn().mockReturnValue(BigInt(100000000)),
   },
 }));
 
@@ -64,7 +79,7 @@ describe("payoutService", () => {
         },
       });
 
-      await expect(payoutService.request({ campaignId: "camp-1", amount: 100 })).rejects.toThrow("Bad Request");
+      await expect(payoutService.request({ campaignId: "camp-1", amount: 100 })).rejects.toThrow("Yayasan belum melengkapi data rekening bank.");
     });
   });
 

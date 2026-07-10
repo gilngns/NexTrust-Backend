@@ -77,4 +77,43 @@ async function interpretStatus(notification) {
   return "FAILED";
 }
 
-export default { createQris, verifySignature, interpretStatus };
+/**
+ * Membentuk payload notifikasi dengan signature yang VALID, memakai formula
+ * signature Midtrans yang sama persis (sha512(order_id+status_code+
+ * gross_amount+serverKey)) dan server key yang kita pegang sendiri.
+ *
+ * Dipakai HANYA untuk simulasi pembayaran QRIS saat demo/dev — supaya alur
+ * "bayar QRIS" bisa langsung ditrigger dari backend sendiri tanpa perlu
+ * membuka dashboard/simulator Midtrans secara manual. Notifikasi yang
+ * dihasilkan diproses lewat kode handler yang SAMA PERSIS dengan webhook
+ * produksi (donationService.handleWebhook), jadi bukan jalur pintas palsu —
+ * cuma sumber notifikasinya yang kita bikin sendiri, bukan dari Midtrans.
+ *
+ * Guard NODE_ENV dilakukan di controller pemanggil, bukan di sini.
+ */
+function buildSimulatedNotification(orderId, grossAmount) {
+  const status_code = "200";
+  const gross_amount = Number(grossAmount).toFixed(2);
+  const signature_key = crypto
+    .createHash("sha512")
+    .update(orderId + status_code + gross_amount + serverKey)
+    .digest("hex");
+
+  return {
+    order_id: orderId,
+    status_code,
+    gross_amount,
+    signature_key,
+    transaction_status: "settlement",
+    fraud_status: "accept",
+    payment_type: "qris",
+    transaction_time: new Date().toISOString(),
+  };
+}
+
+export default {
+  createQris,
+  verifySignature,
+  interpretStatus,
+  buildSimulatedNotification,
+};

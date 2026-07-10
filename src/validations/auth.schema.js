@@ -20,3 +20,12 @@ export const loginSchema = z.object({
     password: z.string().min(1, "Password tidak boleh kosong"),
   }),
 });
+
+export const updateProfileSchema = z.object({
+  body: z.object({
+    name: z.string().min(2, "Nama minimal 2 karakter").optional(),
+    bankName: z.string().min(1, "Nama bank tidak boleh kosong").optional(),
+    bankAccountNo: z.string().min(1, "Nomor rekening tidak boleh kosong").optional(),
+    bankHolder: z.string().min(1, "Nama pemilik rekening tidak boleh kosong").optional(),
+  }),
+});

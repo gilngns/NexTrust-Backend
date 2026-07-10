@@ -90,6 +90,25 @@ async function verifyFoundation(foundationId) {
   return await _sanitize(updated);
 }
 
+/**
+ * Update profil milik sendiri (dipakai halaman Settings — mis. lengkapi
+ * data rekening bank yang dibutuhkan payoutService.autoDisburse). Hanya
+ * field yang dikirim yang diupdate; field lain dibiarkan apa adanya.
+ */
+async function updateProfile(userId, { name, bankName, bankAccountNo, bankHolder }) {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) throw AppError.notFound("User tidak ditemukan");
+
+  const data = {};
+  if (name !== undefined) data.name = name;
+  if (bankName !== undefined) data.bankName = bankName;
+  if (bankAccountNo !== undefined) data.bankAccountNo = bankAccountNo;
+  if (bankHolder !== undefined) data.bankHolder = bankHolder;
+
+  const updated = await prisma.user.update({ where: { id: userId }, data });
+  return await _sanitize(updated);
+}
+
 async function listFoundations() {
   const users = await prisma.user.findMany({
     where: { role: "FOUNDATION" },
@@ -107,4 +126,5 @@ export default {
   verifyToken,
   verifyFoundation,
   listFoundations,
+  updateProfile,
 };

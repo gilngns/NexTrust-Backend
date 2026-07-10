@@ -3,7 +3,7 @@ import * as authController from "../controllers/authController.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import validate from "../middleware/validate.js";
 import { authLimiter } from "../config/limiter.js";
-import { registerSchema, loginSchema } from "../validations/auth.schema.js";
+import { registerSchema, loginSchema, updateProfileSchema } from "../validations/auth.schema.js";
 
 const router = express.Router();
 
@@ -35,6 +35,13 @@ router.get(
   authenticate,
   authorize("DINSOS", "ADMIN"),
   asyncHandler(authController.listFoundations)
+);
+
+router.patch(
+  "/me",
+  authenticate,
+  validate(updateProfileSchema),
+  asyncHandler(authController.updateMe),
 );
 
 export default router;

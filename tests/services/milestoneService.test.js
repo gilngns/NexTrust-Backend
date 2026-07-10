@@ -34,9 +34,16 @@ jest.unstable_mockModule("../../src/services/oracleService.js", () => ({
   },
 }));
 
+jest.unstable_mockModule("../../src/services/payoutService.js", () => ({
+  default: {
+    autoDisburse: jest.fn().mockResolvedValue({ id: "payout-1", status: "COMPLETED" }),
+  },
+}));
+
 const prisma = (await import("../../src/config/prisma.js")).default;
 const contractService = (await import("../../src/services/contractService.js")).default;
 const oracleService = (await import("../../src/services/oracleService.js")).default;
+const payoutService = (await import("../../src/services/payoutService.js")).default;
 const milestoneService = (await import("../../src/services/milestoneService.js")).default;
 
 describe("milestoneService", () => {
@@ -180,8 +187,8 @@ describe("milestoneService", () => {
   });
 
   describe("releaseAdvance", () => {
-    it("should release advance successfully", async () => {
-      prisma.campaign.findUnique.mockResolvedValue({ id: "camp-1", onChainId: "chain-1" });
+    it("should release advance and trigger auto payout", async () => {
+      prisma.campaign.findUnique.mockResolvedValue({ id: "camp-1", onChainId: "chain-1", advanceAmount: BigInt(15000000) });
       contractService.releaseAdvance.mockResolvedValue({ txHash: "0xRelAdvHash" });
       prisma.campaign.update.mockResolvedValue({});
 
@@ -189,21 +196,47 @@ describe("milestoneService", () => {
 
       expect(contractService.releaseAdvance).toHaveBeenCalledWith("chain-1");
       expect(prisma.campaign.update).toHaveBeenCalled();
+      expect(payoutService.autoDisburse).toHaveBeenCalledWith({
+        campaignId: "camp-1",
+        amountUnits: BigInt(15000000),
+        label: "Uang Muka",
+      });
       expect(res.txHash).toBe("0xRelAdvHash");
+      expect(res.payout).toEqual({ id: "payout-1", status: "COMPLETED" });
+      expect(res.payoutWarning).toBeNull();
+    });
+
+    it("should still return txHash even if auto payout fails", async () => {
+      prisma.campaign.findUnique.mockResolvedValue({ id: "camp-1", onChainId: "chain-1", advanceAmount: BigInt(15000000) });
+      contractService.releaseAdvance.mockResolvedValue({ txHash: "0xRelAdvHash" });
+      prisma.campaign.update.mockResolvedValue({});
+      payoutService.autoDisburse.mockRejectedValueOnce(new Error("Yayasan belum melengkapi data rekening bank."));
+
+      const res = await milestoneService.releaseAdvance("camp-1");
+
+      expect(res.txHash).toBe("0xRelAdvHash");
+      expect(res.payout).toBeNull();
+      expect(res.payoutWarning).toBe("Yayasan belum melengkapi data rekening bank.");
     });
   });
 
   describe("release", () => {
-    it("should release milestone successfully", async () => {
+    it("should release milestone and trigger auto payout", async () => {
       prisma.campaign.findUnique.mockResolvedValue({ id: "camp-1", onChainId: "chain-1" });
       contractService.releaseMilestone.mockResolvedValue({ txHash: "0xRelHash" });
-      prisma.milestone.update.mockResolvedValue({ status: "RELEASED" });
+      prisma.milestone.update.mockResolvedValue({ status: "RELEASED", amount: BigInt(5000000) });
 
       const res = await milestoneService.release({ campaignId: "camp-1", index: 1 });
 
       expect(contractService.releaseMilestone).toHaveBeenCalledWith("chain-1");
       expect(prisma.milestone.update).toHaveBeenCalled();
+      expect(payoutService.autoDisburse).toHaveBeenCalledWith({
+        campaignId: "camp-1",
+        amountUnits: BigInt(5000000),
+        label: "Milestone #2",
+      });
       expect(res.txHash).toBe("0xRelHash");
+      expect(res.payout).toEqual({ id: "payout-1", status: "COMPLETED" });
     });
   });
 });
