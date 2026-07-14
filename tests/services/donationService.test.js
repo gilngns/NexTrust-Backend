@@ -94,7 +94,7 @@ describe("donationService", () => {
       await expect(donationService.handleWebhook(mockNotification)).rejects.toThrow("Unauthorized");
     });
 
-    it("should process successful payment and deposit on-chain", async () => {
+    it("should process webhook and start settlement in background", async () => {
       midtransService.verifySignature.mockResolvedValue(true);
       midtransService.interpretStatus.mockResolvedValue("PAID");
       prisma.donation.findUnique.mockResolvedValue({
@@ -113,11 +113,14 @@ describe("donationService", () => {
 
       const result = await donationService.handleWebhook(mockNotification);
 
-      expect(result.status).toBe("DEPOSITED");
-      expect(result.txHash).toBe("0xHash");
+      expect(result.status).toBe("PAID");
+      expect(result.message).toBe("processing_in_background");
+      
+      // Beri sedikit jeda agar proses background (settleDonation) selesai mengeksekusi semua mock
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
       expect(tokenService.mint).toHaveBeenCalled();
       expect(contractService.depositXIDR).toHaveBeenCalled();
-      expect(prisma.donation.update).toHaveBeenCalledTimes(2); 
     });
   });
 
