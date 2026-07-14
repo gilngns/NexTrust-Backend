@@ -113,7 +113,11 @@ async function listByCampaign(campaignId) {
     where: { campaignId },
     orderBy: { createdAt: "desc" },
   });
-  return donations.map((d) => ({ ...d, amount: d.amount.toString() }));
+  return donations.map((d) => ({ 
+    ...d, 
+    amount: d.amount.toString(),
+    explorerUrl: d.txHashDeposit ? `https://amoy.polygonscan.com/tx/${d.txHashDeposit}` : null,
+  }));
 }
 
 /**
@@ -129,6 +133,7 @@ async function getStatusByOrderId(orderId) {
     orderId: donation.orderId,
     status: donation.status,
     txHash: donation.txHashDeposit || null,
+    explorerUrl: donation.txHashDeposit ? `https://amoy.polygonscan.com/tx/${donation.txHashDeposit}` : null,
   };
 }
 

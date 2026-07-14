@@ -8,16 +8,25 @@ async function _serialize(campaign) {
   for (const k of ["targetAmount", "advanceAmount", "milestoneAmount"]) {
     if (out[k] !== undefined && out[k] !== null) out[k] = out[k].toString();
   }
+  
+  if (out.txHashCreate) {
+    out.explorerUrl = `https://amoy.polygonscan.com/tx/${out.txHashCreate}`;
+  }
+
   if (out.donations) {
     out.donations = out.donations.map((d) => ({
       ...d,
       amount: d.amount.toString(),
+      explorerUrl: d.txHashDeposit ? `https://amoy.polygonscan.com/tx/${d.txHashDeposit}` : null,
     }));
   }
   if (out.milestones) {
     out.milestones = out.milestones.map((m) => ({
       ...m,
       amount: m.amount !== undefined && m.amount !== null ? m.amount.toString() : null,
+      evidenceUrl: m.evidenceCID ? `https://gateway.pinata.cloud/ipfs/${m.evidenceCID}` : null,
+      explorerUrl: m.txHashRelease ? `https://amoy.polygonscan.com/tx/${m.txHashRelease}` 
+                 : (m.txHashSubmit ? `https://amoy.polygonscan.com/tx/${m.txHashSubmit}` : null),
     }));
   }
   return out;
