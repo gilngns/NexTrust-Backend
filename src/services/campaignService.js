@@ -209,7 +209,7 @@ async function approve(id) {
 async function reject(id) {
   const campaign = await prisma.campaign.update({
     where: { id },
-    data: { status: "FROZEN", aiNotes: "Pengajuan ditolak oleh Dinsos." },
+    data: { status: "REJECTED", aiNotes: "Pengajuan ditolak oleh Dinsos." },
   });
   return await _serialize(campaign);
 }
