@@ -1,6 +1,7 @@
 import prisma from "../config/prisma.js";
 import AppError from "../utils/AppError.js";
 import contractService from "./contractService.js";
+import oracleService from "./oracleService.js";
 import { progressiveRetentionSplit } from "../utils/milestoneSplit.js";
 
 async function _serialize(campaign) {
@@ -108,6 +109,14 @@ const create = async ({
     include: { milestones: true },
   });
 
+  if (aiScore !== undefined && aiScore >= 85) {
+    try {
+      await oracleService.submitScore(onChainId, aiScore, Date.now());
+    } catch (error) {
+      console.error("[campaignService] Gagal submitScore ke blockchain saat create:", error);
+    }
+  }
+
   return await _serialize(campaign);
 };
 
@@ -212,6 +221,14 @@ async function approve(id) {
     where: { id },
     data: { status: "ACTIVE" },
   });
+
+  try {
+    // Skor >= 85 mengindikasikan approval (berdasarkan threshold oracle)
+    await oracleService.submitScore(campaign.onChainId, 100, Date.now());
+  } catch (error) {
+    console.error("[campaignService] Gagal submitScore ke blockchain saat approve:", error);
+  }
+
   return await _serialize(campaign);
 }
 
