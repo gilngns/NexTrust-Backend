@@ -51,7 +51,7 @@ async function handleWebhook(notification) {
   });
   if (!donation) throw AppError.notFound();
 
-  if (donation.status === "DEPOSITED") {
+  if (donation.status === "DEPOSITED" || donation.status === "PAID") {
     return { status: "already_processed" };
   }
 
@@ -63,8 +63,18 @@ async function handleWebhook(notification) {
     return { status };
   }
 
-  const result = await settleDonation(donation.id);
-  return { status: result.status, txHash: result.txHash };
+  // Update status to PAID immediately to prevent concurrent retries from processing again
+  await prisma.donation.update({
+    where: { id: donation.id },
+    data: { status: "PAID", paidAt: new Date() },
+  });
+
+  // Run blockchain transactions in the background so we can respond to Midtrans immediately
+  settleDonation(donation.id).catch((err) => {
+    console.error(`[Background] settleDonation failed for ${donation.id}:`, err);
+  });
+
+  return { status: "PAID", message: "processing_in_background" };
 }
 
 async function settleDonation(donationId) {
@@ -81,10 +91,12 @@ async function settleDonation(donationId) {
     throw AppError.badRequest("Status donasi sudah final dan tidak dapat diproses.");
   }
 
-  await prisma.donation.update({
-    where: { id: donation.id },
-    data: { status: "PAID", paidAt: new Date() },
-  });
+  if (donation.status !== "PAID") {
+    await prisma.donation.update({
+      where: { id: donation.id },
+      data: { status: "PAID", paidAt: new Date() },
+    });
+  }
 
   const campaign = await prisma.campaign.findUnique({
     where: { id: donation.campaignId },
