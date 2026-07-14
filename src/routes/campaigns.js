@@ -42,6 +42,11 @@ router.post(
   asyncHandler(campaignController.donate),
 );
 
+router.post(
+  "/:id/donations/:donationId/simulate",
+  asyncHandler(campaignController.simulateDonation),
+);
+
 router.get("/:id/payouts", asyncHandler(payoutController.listPayouts));
 router.post(
   "/:id/payouts",

@@ -63,6 +63,24 @@ async function handleWebhook(notification) {
     return { status };
   }
 
+  const result = await settleDonation(donation.id);
+  return { status: result.status, txHash: result.txHash };
+}
+
+async function settleDonation(donationId) {
+  const donation = await prisma.donation.findUnique({
+    where: { id: donationId },
+  });
+  if (!donation) throw AppError.notFound("Donasi tidak ditemukan.");
+
+  if (donation.status === "DEPOSITED") {
+    return { status: "already_processed", donation };
+  }
+  
+  if (donation.status === "EXPIRED" || donation.status === "FAILED") {
+    throw AppError.badRequest("Status donasi sudah final dan tidak dapat diproses.");
+  }
+
   await prisma.donation.update({
     where: { id: donation.id },
     data: { status: "PAID", paidAt: new Date() },
@@ -82,12 +100,12 @@ async function handleWebhook(notification) {
     donorAddress: donation.donorAddress,
   });
 
-  await prisma.donation.update({
+  const updatedDonation = await prisma.donation.update({
     where: { id: donation.id },
     data: { status: "DEPOSITED", txHashDeposit: dep.txHash },
   });
 
-  return { status: "DEPOSITED", txHash: dep.txHash };
+  return { status: "DEPOSITED", txHash: dep.txHash, donation: updatedDonation };
 }
 
 async function listByCampaign(campaignId) {
@@ -114,4 +132,4 @@ async function getStatusByOrderId(orderId) {
   };
 }
 
-export default { initiate, handleWebhook, listByCampaign, getStatusByOrderId };
+export default { initiate, handleWebhook, listByCampaign, getStatusByOrderId, settleDonation };

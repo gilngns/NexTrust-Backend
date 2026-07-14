@@ -2,6 +2,9 @@ import contractService from "../services/contractService.js";
 import campaignService from "../services/campaignService.js";
 import donationService from "../services/donationService.js";
 import milestoneService from "../services/milestoneService.js";
+import config from "../config/index.js";
+import prisma from "../config/prisma.js";
+import AppError from "../utils/AppError.js";
 
 export async function listCampaigns(req, res, next) {
   try {
@@ -155,6 +158,32 @@ export async function reject(req, res, next) {
   try {
     const campaign = await campaignService.reject(req.params.id);
     res.json({ ok: true, campaign });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function simulateDonation(req, res, next) {
+  try {
+    if (config.midtrans.isProduction) {
+      throw AppError.forbidden("Endpoint simulasi tidak tersedia di environment production.");
+    }
+
+    const { id: campaignId, donationId } = req.params;
+
+    const campaign = await prisma.campaign.findUnique({ where: { id: campaignId } });
+    if (!campaign) throw AppError.notFound("Campaign tidak ditemukan.");
+
+    const donation = await prisma.donation.findUnique({ where: { id: donationId } });
+    if (!donation) throw AppError.notFound("Donasi tidak ditemukan.");
+
+    if (donation.campaignId !== campaignId) {
+      throw AppError.badRequest("Donasi tidak sesuai dengan campaign.");
+    }
+
+    const result = await donationService.settleDonation(donationId);
+    
+    res.json({ ok: true, donation: result.donation });
   } catch (error) {
     next(error);
   }
