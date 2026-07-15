@@ -26,6 +26,7 @@ jest.unstable_mockModule("ethers", () => ({
     Contract: jest.fn().mockImplementation(() => mockContractInstance),
     id: jest.fn().mockReturnValue("0xHashedId"),
     formatEther: jest.fn().mockReturnValue("1.0"),
+    parseUnits: jest.fn().mockReturnValue(BigInt(1000000000)),
   },
 }));
 
@@ -68,7 +69,11 @@ describe("contractService", () => {
         BigInt(10),
         [BigInt(36), BigInt(54)],
         "cid",
-        "0xBen"
+        "0xBen",
+        {
+          maxFeePerGas: BigInt(1000000000),
+          maxPriorityFeePerGas: BigInt(1000000000),
+        }
       );
       expect(res.txHash).toBe("0xTxHash");
       expect(res.campaignId).toBe("0xHashedId");
@@ -85,7 +90,15 @@ describe("contractService", () => {
         donorAddress: "0xDonor",
       });
 
-      expect(mockContractInstance.depositXIDR).toHaveBeenCalledWith("0xHashedId", BigInt(50), "0xDonor");
+      expect(mockContractInstance.depositXIDR).toHaveBeenCalledWith(
+        "0xHashedId",
+        BigInt(50),
+        "0xDonor",
+        {
+          maxFeePerGas: BigInt(1000000000),
+          maxPriorityFeePerGas: BigInt(1000000000),
+        }
+      );
       expect(res.txHash).toBe("0xTxHash2");
     });
   });
