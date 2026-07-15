@@ -24,6 +24,20 @@ const escrow = new ethers.Contract(
   backendWallet,
 );
 
+// ── Gas override ────────────────────────────────────────────
+// RPC Amoy sering ngasih estimasi gas price absurd tinggi.
+// Tanpa cap ini, createCampaign/depositXIDR bisa makan 0.05-0.09 POL.
+// Dengan cap: turun ke ~0.01-0.02 POL. Amoy butuh priority min ~25 Gwei.
+function getGasOverrides() {
+  return {
+    maxFeePerGas: ethers.parseUnits(config.chain.maxFeeGwei, "gwei"),
+    maxPriorityFeePerGas: ethers.parseUnits(
+      config.chain.maxPriorityFeeGwei,
+      "gwei",
+    ),
+  };
+}
+
 async function toCampaignId(str) {
   return ethers.id(str);
 }
@@ -84,6 +98,7 @@ const createCampaign = async ({
     milestoneAmounts,
     rabCID,
     beneficiary,
+    getGasOverrides(),
   );
   const receipt = await tx.wait();
   return { txHash: receipt.hash, campaignId: id };
@@ -91,40 +106,51 @@ const createCampaign = async ({
 
 async function depositXIDR({ campaignIdStr, amount, donorAddress }) {
   const id = await toCampaignId(campaignIdStr);
-  const tx = await escrow.depositXIDR(id, amount, donorAddress);
+  const tx = await escrow.depositXIDR(id, amount, donorAddress, getGasOverrides());
   const receipt = await tx.wait();
   return { txHash: receipt.hash };
 }
 
 async function releaseAdvance(campaignIdStr) {
-  const tx = await escrow.releaseAdvance(await toCampaignId(campaignIdStr));
+  const tx = await escrow.releaseAdvance(
+    await toCampaignId(campaignIdStr),
+    getGasOverrides(),
+  );
   const receipt = await tx.wait();
   return { txHash: receipt.hash };
 }
 
 async function submitMilestone({ campaignIdStr, evidenceCID, metadataHash }) {
   const id = await toCampaignId(campaignIdStr);
-  const tx = await escrow.submitMilestone(id, evidenceCID, metadataHash);
+  const tx = await escrow.submitMilestone(
+    id,
+    evidenceCID,
+    metadataHash,
+    getGasOverrides(),
+  );
   const receipt = await tx.wait();
   return { txHash: receipt.hash };
 }
 
 async function releaseMilestone(campaignIdStr) {
-  const tx = await escrow.releaseMilestone(await toCampaignId(campaignIdStr));
+  const tx = await escrow.releaseMilestone(
+    await toCampaignId(campaignIdStr),
+    getGasOverrides(),
+  );
   const receipt = await tx.wait();
   return { txHash: receipt.hash };
 }
 
 async function resolveFrozen({ campaignIdStr, approve }) {
   const id = await toCampaignId(campaignIdStr);
-  const tx = await escrow.resolveFrozen(id, approve);
+  const tx = await escrow.resolveFrozen(id, approve, getGasOverrides());
   const receipt = await tx.wait();
   return { txHash: receipt.hash };
 }
 
 async function claimRefund({ campaignIdStr, donorSigner }) {
   const id = await toCampaignId(campaignIdStr);
-  const tx = await escrow.claimRefund(id);
+  const tx = await escrow.claimRefund(id, getGasOverrides());
   const receipt = await tx.wait();
   return { txHash: receipt.hash };
 }

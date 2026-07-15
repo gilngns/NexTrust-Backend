@@ -49,6 +49,8 @@ const config = {
     xidrAddress: process.env.XIDR_ADDRESS || "",
     backendPrivateKey: required("BACKEND_PRIVATE_KEY"),
     oraclePrivateKey: process.env.ORACLE_PRIVATE_KEY || "",
+    maxFeeGwei: process.env.MAX_FEE_GWEI || "50",
+    maxPriorityFeeGwei: process.env.MAX_PRIORITY_FEE_GWEI || "25",
   },
 
   midtrans: {
