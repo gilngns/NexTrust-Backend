@@ -3,11 +3,14 @@ import AppError from "../utils/AppError.js";
 import contractService from "./contractService.js";
 import oracleService from "./oracleService.js";
 import { progressiveRetentionSplit } from "../utils/milestoneSplit.js";
+import { ethers } from "ethers";
 
 async function _serialize(campaign) {
   const out = { ...campaign };
   for (const k of ["targetAmount", "advanceAmount", "milestoneAmount"]) {
-    if (out[k] !== undefined && out[k] !== null) out[k] = out[k].toString();
+    if (out[k] !== undefined && out[k] !== null) {
+      out[k] = ethers.formatUnits(out[k], 6).split('.')[0];
+    }
   }
   
   if (out.txHashCreate) {
@@ -17,7 +20,7 @@ async function _serialize(campaign) {
   if (out.donations) {
     out.donations = out.donations.map((d) => ({
       ...d,
-      amount: d.amount.toString(),
+      amount: ethers.formatUnits(d.amount, 6).split('.')[0],
       explorerUrl: d.txHashDeposit ? `https://amoy.polygonscan.com/tx/${d.txHashDeposit}` : null,
     }));
   }
@@ -33,44 +36,52 @@ async function _serialize(campaign) {
   return out;
 }
 
-const create = async ({
-  onChainId,
-  title,
-  description,
-  imageUrl,
-  category,
-  rabCID,
-  targetAmount,
-  advanceAmount,
-  milestoneAmount,
-  totalMilestones,
-  foundationId,
-  latitude,
-  longitude,
-  izinPub,
-  aiScore,
-  aiNotes,
-  rabData,
-}) => {
-  const foundation = await prisma.user.findUnique({
-    where: { id: foundationId },
-  });
-  if (!foundation) throw AppError.notFound();
-  if (!foundation.custodialAddress) {
-    throw AppError.badRequest();
-  }
-  const beneficiary = foundation.custodialAddress;
-
-  const milestoneTotal = BigInt(targetAmount) - BigInt(advanceAmount);
-  const milestoneAmounts = progressiveRetentionSplit(
-    milestoneTotal,
+const create = async (payload) => {
+  const {
+    onChainId,
+    title,
+    description,
+    imageUrl,
+    category,
+    rabCID,
+    targetAmount,
+    advanceAmount,
+    milestoneAmount,
     totalMilestones,
-  );
+    foundationId,
+    latitude,
+    longitude,
+    izinPub,
+    aiScore,
+    aiNotes,
+    rabData,
+  } = payload;
+
+  try {
+    const foundation = await prisma.user.findUnique({
+      where: { id: foundationId },
+    });
+    if (!foundation) throw AppError.notFound();
+    if (!foundation.custodialAddress) {
+      throw AppError.badRequest();
+    }
+    const beneficiary = foundation.custodialAddress;
+
+    const tAmt = targetAmount || 0;
+    const aAmt = advanceAmount || 0;
+
+    const targetToken = ethers.parseUnits(tAmt.toString(), 6);
+    const advanceToken = ethers.parseUnits(aAmt.toString(), 6);
+    const milestoneTotal = targetToken - advanceToken;
+    const milestoneAmounts = progressiveRetentionSplit(
+      milestoneTotal,
+      totalMilestones,
+    );
 
   const onchain = await contractService.createCampaign({
     campaignIdStr: onChainId,
-    targetAmount: BigInt(targetAmount),
-    advanceAmount: BigInt(advanceAmount),
+    targetAmount: targetToken,
+    advanceAmount: advanceToken,
     milestoneAmounts,
     rabCID: rabCID || "QmPlaceholder",
     beneficiary,
@@ -84,8 +95,8 @@ const create = async ({
       imageUrl,
       category,
       rabCID,
-      targetAmount: BigInt(targetAmount),
-      advanceAmount: BigInt(advanceAmount),
+      targetAmount: targetToken,
+      advanceAmount: advanceToken,
       milestoneAmount: milestoneTotal,
       totalMilestones,
       foundationId,
@@ -118,6 +129,10 @@ const create = async ({
   }
 
   return await _serialize(campaign);
+  } catch (error) {
+    require('fs').writeFileSync('d:/nextrust-backend_2/last_error.log', error.stack || error.toString());
+    throw error;
+  }
 };
 
 async function list(status) {
@@ -157,8 +172,13 @@ async function getById(id) {
     lockedFunds = await contractService.getLockedFunds(campaign.onChainId);
   } catch (_) {}
 
+  const collectedAmount = campaign.donations
+    .filter(d => ["PAID", "DEPOSITED"].includes(d.status))
+    .reduce((sum, d) => sum + BigInt(d.amount), 0n);
+
   return {
     ...(await _serialize(campaign)),
+    collectedAmount: ethers.formatUnits(collectedAmount, 6).split('.')[0],
     onChainState: onChainState !== null ? Number(onChainState) : null,
     lockedFunds,
   };

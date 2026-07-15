@@ -220,7 +220,10 @@ async function listByCampaign(campaignId) {
     where: { campaignId },
     orderBy: { createdAt: "desc" },
   });
-  return payouts.map((p) => ({ ...p, amount: p.amount.toString() }));
+  return payouts.map((p) => ({ 
+    ...p, 
+    amount: ethers.formatUnits(p.amount, XIDR_DECIMALS).split('.')[0] 
+  }));
 }
 
 export default { autoDisburse, request, process, listByCampaign };

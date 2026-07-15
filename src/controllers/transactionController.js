@@ -1,4 +1,5 @@
 import prisma from "../config/prisma.js";
+import { ethers } from "ethers";
 
 export async function getTransactions(req, res, next) {
   try {
@@ -31,7 +32,7 @@ export async function getTransactions(req, res, next) {
         ? donation.paidAt.toISOString()
         : donation.createdAt.toISOString(),
       campaign: donation.campaign?.title || "Unknown Campaign",
-      amount: Number(donation.amount),
+      amount: Number(ethers.formatUnits(donation.amount.toString(), 6)),
       status: donation.status === "DEPOSITED" ? "deposited" : donation.status === "PAID" ? "success" : donation.status === "PENDING" ? "pending" : "failed",
       method: "QRIS",
       donorName: donation.donorName || "Hamba Allah",

@@ -13,6 +13,12 @@ async function initiate({ campaignId, donorName, amountRupiah }) {
     where: { id: campaignId },
   });
   if (!campaign) throw AppError.notFound();
+
+  const onChainState = await contractService.getCampaignState(campaign.onChainId);
+  if (onChainState !== 0n) { // 0 = ACTIVE
+    throw AppError.badRequest("Kampanye sudah mencapai target atau tidak aktif.");
+  }
+
   const donorWallet = await walletService.generate();
 
   const orderId = `NEXTRUST-${campaign.onChainId}-${Date.now()}`;
@@ -127,7 +133,7 @@ async function listByCampaign(campaignId) {
   });
   return donations.map((d) => ({ 
     ...d, 
-    amount: d.amount.toString(),
+    amount: ethers.formatUnits(d.amount, 6).split('.')[0],
     explorerUrl: d.txHashDeposit ? `https://amoy.polygonscan.com/tx/${d.txHashDeposit}` : null,
   }));
 }
