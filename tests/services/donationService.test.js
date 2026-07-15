@@ -40,6 +40,7 @@ jest.unstable_mockModule("../../src/services/tokenService.js", () => ({
 jest.unstable_mockModule("../../src/services/contractService.js", () => ({
   default: {
     depositXIDR: jest.fn(),
+    getCampaignState: jest.fn(),
   },
 }));
 
@@ -68,6 +69,7 @@ describe("donationService", () => {
       walletService.generate.mockResolvedValue({ address: "0xDonor" });
       midtransService.createQris.mockResolvedValue({ qrisUrl: "http://qris.url" });
       ethers.parseUnits.mockReturnValue(BigInt(100000000));
+      contractService.getCampaignState.mockResolvedValue(0n);
       prisma.donation.create.mockResolvedValue({
         id: "don-1",
       });
@@ -127,12 +129,13 @@ describe("donationService", () => {
   describe("listByCampaign", () => {
     it("should list donations for a campaign and serialize amount", async () => {
       prisma.donation.findMany.mockResolvedValue([
-        { id: "don-1", amount: BigInt(1000) }
+        { id: "don-1", amount: BigInt(1000000000) }
       ]);
+      ethers.formatUnits.mockReturnValue("1000.0");
 
       const result = await donationService.listByCampaign("camp-1");
       expect(prisma.donation.findMany).toHaveBeenCalled();
-      expect(result[0].amount).toBe("1000"); 
+      expect(result[0].amount).toBe("1000");
     });
   });
 });

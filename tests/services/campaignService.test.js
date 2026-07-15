@@ -74,9 +74,9 @@ describe("campaignService", () => {
       });
       expect(contractService.createCampaign).toHaveBeenCalledWith({
         campaignIdStr: validPayload.onChainId,
-        targetAmount: BigInt(validPayload.targetAmount),
-        advanceAmount: BigInt(validPayload.advanceAmount),
-        milestoneAmounts: [BigInt(360000), BigInt(540000)],
+        targetAmount: BigInt("1000000000000"),
+        advanceAmount: BigInt("100000000000"),
+        milestoneAmounts: [BigInt("360000000000"), BigInt("540000000000")],
         rabCID: validPayload.rabCID,
         beneficiary: "0x123",
       });

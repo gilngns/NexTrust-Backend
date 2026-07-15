@@ -57,26 +57,25 @@ const create = async (payload) => {
     rabData,
   } = payload;
 
-  try {
-    const foundation = await prisma.user.findUnique({
-      where: { id: foundationId },
-    });
-    if (!foundation) throw AppError.notFound();
-    if (!foundation.custodialAddress) {
-      throw AppError.badRequest();
-    }
-    const beneficiary = foundation.custodialAddress;
+  const foundation = await prisma.user.findUnique({
+    where: { id: foundationId },
+  });
+  if (!foundation) throw AppError.notFound();
+  if (!foundation.custodialAddress) {
+    throw AppError.badRequest();
+  }
+  const beneficiary = foundation.custodialAddress;
 
-    const tAmt = targetAmount || 0;
-    const aAmt = advanceAmount || 0;
+  const tAmt = targetAmount || 0;
+  const aAmt = advanceAmount || 0;
 
-    const targetToken = ethers.parseUnits(tAmt.toString(), 6);
-    const advanceToken = ethers.parseUnits(aAmt.toString(), 6);
-    const milestoneTotal = targetToken - advanceToken;
-    const milestoneAmounts = progressiveRetentionSplit(
-      milestoneTotal,
-      totalMilestones,
-    );
+  const targetToken = ethers.parseUnits(tAmt.toString(), 6);
+  const advanceToken = ethers.parseUnits(aAmt.toString(), 6);
+  const milestoneTotal = targetToken - advanceToken;
+  const milestoneAmounts = progressiveRetentionSplit(
+    milestoneTotal,
+    totalMilestones,
+  );
 
   const onchain = await contractService.createCampaign({
     campaignIdStr: onChainId,
@@ -129,10 +128,6 @@ const create = async (payload) => {
   }
 
   return await _serialize(campaign);
-  } catch (error) {
-    require('fs').writeFileSync('d:/nextrust-backend_2/last_error.log', error.stack || error.toString());
-    throw error;
-  }
 };
 
 async function list(status) {
