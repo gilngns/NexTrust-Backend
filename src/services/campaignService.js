@@ -27,7 +27,7 @@ async function _serialize(campaign) {
   if (out.milestones) {
     out.milestones = out.milestones.map((m) => ({
       ...m,
-      amount: m.amount !== undefined && m.amount !== null ? m.amount.toString() : null,
+      amount: m.amount !== undefined && m.amount !== null ? ethers.formatUnits(m.amount, 6).split('.')[0] : null,
       evidenceUrl: m.evidenceCID ? `https://gateway.pinata.cloud/ipfs/${m.evidenceCID}` : null,
       explorerUrl: m.txHashRelease ? `https://amoy.polygonscan.com/tx/${m.txHashRelease}` 
                  : (m.txHashSubmit ? `https://amoy.polygonscan.com/tx/${m.txHashSubmit}` : null),
