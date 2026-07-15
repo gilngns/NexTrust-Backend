@@ -56,9 +56,9 @@ describe("campaignService", () => {
       const mockCampaign = {
         id: "camp-123",
         ...validPayload,
-        targetAmount: BigInt(validPayload.targetAmount),
-        advanceAmount: BigInt(validPayload.advanceAmount),
-        milestoneAmount: BigInt(validPayload.milestoneAmount),
+        targetAmount: BigInt("1000000000000"),
+        advanceAmount: BigInt("100000000000"),
+        milestoneAmount: BigInt("900000000000"),
         beneficiary: "0x123",
         status: "ACTIVE",
         txHashCreate: "0xabc",
