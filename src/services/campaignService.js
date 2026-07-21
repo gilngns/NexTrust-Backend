@@ -142,7 +142,7 @@ async function list(status) {
       foundation: { select: { name: true } },
       milestones: true,
       donations: {
-        select: { status: true, amount: true }
+        select: { status: true, amount: true, donorId: true, donorName: true, donorAddress: true }
       }
     },
   });
@@ -156,7 +156,8 @@ async function list(status) {
     const collected = successfulDonations.reduce((sum, d) => sum + BigInt(d.amount), 0n);
     
     serialized.collectedAmount = Math.round(Number(ethers.formatUnits(collected, 6))).toString();
-    serialized.donorCount = successfulDonations.length;
+    const uniqueDonors = new Set(successfulDonations.map(d => d.donorId || d.donorName || d.donorAddress || "anon"));
+    serialized.donorCount = uniqueDonors.size;
     
     // Remove donations from list response to keep it lightweight
     delete serialized.donations;
