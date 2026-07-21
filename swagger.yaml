@@ -7,7 +7,6 @@ info:
     Semua respons berformat { ok: boolean, ... }."
 servers:
   - url: https://nextrust.my.id
-  - url: http://100.69.27.113:3000
     description: Production
   - url: http://localhost:3000
     description: Local
