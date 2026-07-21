@@ -3,13 +3,14 @@ import AppError from "../utils/AppError.js";
 import contractService from "./contractService.js";
 import oracleService from "./oracleService.js";
 import { progressiveRetentionSplit } from "../utils/milestoneSplit.js";
+import { saveBase64File } from "../utils/fileUpload.js";
 import { ethers } from "ethers";
 
 async function _serialize(campaign) {
   const out = { ...campaign };
   for (const k of ["targetAmount", "advanceAmount", "milestoneAmount"]) {
     if (out[k] !== undefined && out[k] !== null) {
-      out[k] = ethers.formatUnits(out[k], 6).split('.')[0];
+      out[k] = Math.round(Number(ethers.formatUnits(out[k], 6))).toString();
     }
   }
   
@@ -20,14 +21,14 @@ async function _serialize(campaign) {
   if (out.donations) {
     out.donations = out.donations.map((d) => ({
       ...d,
-      amount: ethers.formatUnits(d.amount, 6).split('.')[0],
+      amount: Math.round(Number(ethers.formatUnits(d.amount, 6))).toString(),
       explorerUrl: d.txHashDeposit ? `https://amoy.polygonscan.com/tx/${d.txHashDeposit}` : null,
     }));
   }
   if (out.milestones) {
     out.milestones = out.milestones.map((m) => ({
       ...m,
-      amount: m.amount !== undefined && m.amount !== null ? ethers.formatUnits(m.amount, 6).split('.')[0] : null,
+      amount: m.amount !== undefined && m.amount !== null ? Math.round(Number(ethers.formatUnits(m.amount, 6))).toString() : null,
       evidenceUrl: m.evidenceCID ? `https://gateway.pinata.cloud/ipfs/${m.evidenceCID}` : null,
       explorerUrl: m.txHashRelease ? `https://amoy.polygonscan.com/tx/${m.txHashRelease}` 
                  : (m.txHashSubmit ? `https://amoy.polygonscan.com/tx/${m.txHashSubmit}` : null),
@@ -86,12 +87,15 @@ const create = async (payload) => {
     beneficiary,
   });
 
+  const finalImageUrl = saveBase64File(imageUrl);
+  const finalIzinPubUrl = saveBase64File(izinPub);
+
   const campaign = await prisma.campaign.create({
     data: {
       onChainId,
       title,
       description,
-      imageUrl,
+      imageUrl: finalImageUrl,
       category,
       rabCID,
       targetAmount: targetToken,
@@ -102,7 +106,7 @@ const create = async (payload) => {
       beneficiary,
       latitude,
       longitude,
-      izinPub,
+      izinPub: finalIzinPubUrl,
       aiScore,
       aiNotes,
       rabData,
@@ -151,7 +155,7 @@ async function list(status) {
       
     const collected = successfulDonations.reduce((sum, d) => sum + BigInt(d.amount), 0n);
     
-    serialized.collectedAmount = ethers.formatUnits(collected, 6).split('.')[0];
+    serialized.collectedAmount = Math.round(Number(ethers.formatUnits(collected, 6))).toString();
     serialized.donorCount = successfulDonations.length;
     
     // Remove donations from list response to keep it lightweight
@@ -187,7 +191,7 @@ async function getById(id) {
 
   return {
     ...(await _serialize(campaign)),
-    collectedAmount: ethers.formatUnits(collectedAmount, 6).split('.')[0],
+    collectedAmount: Math.round(Number(ethers.formatUnits(collectedAmount, 6))).toString(),
     onChainState: onChainState !== null ? Number(onChainState) : null,
     lockedFunds,
   };
@@ -238,9 +242,10 @@ async function generateDraftPlan({ rabData, targetAmount }) {
 }
 
 async function updateImage(id, imageUrl) {
+  const finalImageUrl = saveBase64File(imageUrl);
   const campaign = await prisma.campaign.update({
     where: { id },
-    data: { imageUrl },
+    data: { imageUrl: finalImageUrl },
   });
   return await _serialize(campaign);
 }
