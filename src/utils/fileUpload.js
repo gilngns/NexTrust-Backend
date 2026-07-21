@@ -36,8 +36,7 @@ export function saveBase64File(base64String) {
 
   fs.writeFileSync(filePath, buffer);
 
-  const baseUrl = process.env.API_URL || "http://localhost:3000";
-  return `${baseUrl}/uploads/${fileName}`;
+  return `/uploads/${fileName}`;
 }
 
 export default { saveBase64File };
