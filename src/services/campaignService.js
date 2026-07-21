@@ -159,6 +159,12 @@ async function list(status) {
     const uniqueDonors = new Set(successfulDonations.map(d => d.donorId || d.donorName || d.donorAddress || "anon"));
     serialized.donorCount = uniqueDonors.size;
     
+    // Add boolean flags for frontend convenience
+    const targetAmtNum = Number(serialized.targetAmount) || 0;
+    const collectedAmtNum = Number(serialized.collectedAmount) || 0;
+    serialized.isTargetReached = collectedAmtNum >= targetAmtNum;
+    serialized.canDonate = serialized.status === "ACTIVE" && !serialized.isTargetReached;
+    
     // Remove donations from list response to keep it lightweight
     delete serialized.donations;
 
@@ -190,11 +196,18 @@ async function getById(id) {
     .filter(d => ["PAID", "DEPOSITED"].includes(d.status))
     .reduce((sum, d) => sum + BigInt(d.amount), 0n);
 
+  const serialized = await _serialize(campaign);
+  const collAmtStr = Math.round(Number(ethers.formatUnits(collectedAmount, 6))).toString();
+  const tgtAmtNum = Number(serialized.targetAmount) || 0;
+  const collAmtNum = Number(collAmtStr) || 0;
+
   return {
-    ...(await _serialize(campaign)),
-    collectedAmount: Math.round(Number(ethers.formatUnits(collectedAmount, 6))).toString(),
+    ...serialized,
+    collectedAmount: collAmtStr,
     onChainState: onChainState !== null ? Number(onChainState) : null,
     lockedFunds,
+    isTargetReached: collAmtNum >= tgtAmtNum,
+    canDonate: serialized.status === "ACTIVE" && !serialized.isTargetReached,
   };
 }
 
