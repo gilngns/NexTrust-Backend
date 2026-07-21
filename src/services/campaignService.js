@@ -136,13 +136,27 @@ async function list(status) {
     orderBy: { createdAt: "desc" },
     include: { 
       foundation: { select: { name: true } },
-      _count: { select: { donations: true } },
-      milestones: true
+      milestones: true,
+      donations: {
+        select: { status: true, amount: true }
+      }
     },
   });
   return await Promise.all(campaigns.map(async (c) => {
     const serialized = await _serialize(c);
-    serialized.donorCount = c._count?.donations || 0;
+    
+    const successfulDonations = c.donations
+      ? c.donations.filter(d => ["PAID", "DEPOSITED"].includes(d.status))
+      : [];
+      
+    const collected = successfulDonations.reduce((sum, d) => sum + BigInt(d.amount), 0n);
+    
+    serialized.collectedAmount = ethers.formatUnits(collected, 6).split('.')[0];
+    serialized.donorCount = successfulDonations.length;
+    
+    // Remove donations from list response to keep it lightweight
+    delete serialized.donations;
+
     return serialized;
   }));
 }
