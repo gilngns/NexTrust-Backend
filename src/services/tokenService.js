@@ -6,6 +6,7 @@ import walletService from "./walletService.js";
 const XIDR_ABI = [
   "function mint(address to, uint256 amount) external",
   "function approve(address spender, uint256 amount) external returns (bool)",
+  "function allowance(address owner, address spender) external view returns (uint256)",
   "function balanceOf(address account) external view returns (uint256)",
   "function decimals() external view returns (uint8)",
   "function owner() external view returns (address)",
@@ -81,16 +82,25 @@ async function toUnits(humanAmount) {
 
 async function mint(toAddress, humanAmount) {
   const amount = await toUnits(humanAmount);
-  const tx = await token.mint(toAddress, amount);
-  const receipt = await tx.wait();
-  return { txHash: receipt.hash, amount: amount.toString() };
+  const bal = await token.balanceOf(toAddress);
+  if (bal < amount) {
+    const batchAmount = amount + (await toUnits("10000000000")); // Mint extra 10 miliar XIDR sekaligus
+    const tx = await token.mint(toAddress, batchAmount);
+    const receipt = await tx.wait();
+    return { txHash: receipt.hash, amount: batchAmount.toString() };
+  }
+  return { txHash: "skipped", amount: amount.toString() };
 }
 
 async function approveEscrow(humanAmount) {
   const amount = await toUnits(humanAmount);
-  const tx = await token.approve(config.chain.escrowAddress, amount);
-  const receipt = await tx.wait();
-  return { txHash: receipt.hash, amount: amount.toString() };
+  const currentAllowance = await token.allowance(backendWallet.address, config.chain.escrowAddress);
+  if (currentAllowance < amount) {
+    const tx = await token.approve(config.chain.escrowAddress, ethers.MaxUint256);
+    const receipt = await tx.wait();
+    return { txHash: receipt.hash, amount: ethers.MaxUint256.toString() };
+  }
+  return { txHash: "skipped", amount: amount.toString() };
 }
 
 /**
