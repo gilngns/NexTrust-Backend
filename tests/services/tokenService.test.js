@@ -9,7 +9,8 @@ jest.unstable_mockModule("ethers", () => ({
     Contract: jest.fn().mockImplementation(() => ({
       decimals: jest.fn().mockResolvedValue(6),
       owner: jest.fn().mockResolvedValue("0xBackendWallet"),
-      balanceOf: jest.fn().mockResolvedValue(BigInt(100000000)),
+      balanceOf: jest.fn().mockResolvedValue(BigInt(0)),
+      allowance: jest.fn().mockResolvedValue(BigInt(0)),
       mint: jest.fn().mockResolvedValue({
         wait: jest.fn().mockResolvedValue({ hash: "0xMintHash" })
       }),
@@ -18,6 +19,7 @@ jest.unstable_mockModule("ethers", () => ({
       }),
     })),
     parseUnits: jest.fn().mockReturnValue(BigInt(100000000)),
+    MaxUint256: BigInt("115792089237316195423570985008687907853269984665640564039457584007913129639935"),
   },
 }));
 
@@ -51,23 +53,24 @@ describe("tokenService", () => {
   describe("balanceOf", () => {
     it("should return balance of an address", async () => {
       const res = await tokenService.balanceOf("0xUser");
-      expect(res).toBe("100000000");
+      expect(res).toBe("0");
     });
   });
 
   describe("mint", () => {
-    it("should mint tokens to address", async () => {
+    it("should mint tokens to address if balance is low", async () => {
       const res = await tokenService.mint("0xUser", 100);
       expect(res.txHash).toBe("0xMintHash");
-      expect(res.amount).toBe("100000000");
+      // parseUnits is mocked to return 100000000, so 100000000 + 100000000 = 200000000
+      expect(res.amount).toBe("200000000");
     });
   });
 
   describe("approveEscrow", () => {
-    it("should approve escrow contract to spend tokens", async () => {
+    it("should approve escrow contract to spend tokens with MaxUint256", async () => {
       const res = await tokenService.approveEscrow(100);
       expect(res.txHash).toBe("0xApproveHash");
-      expect(res.amount).toBe("100000000");
+      expect(res.amount).toBe(ethers.MaxUint256.toString());
     });
   });
 });
