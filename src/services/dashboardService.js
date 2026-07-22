@@ -56,10 +56,10 @@ async function getFoundationDashboard(foundationId) {
 
 function formatCurrency(num) {
   if (num >= 1000000000) {
-    return `Rp ${(num / 1000000000).toFixed(1)}B`;
+    return `Rp ${(num / 1000000000).toFixed(1)} Miliar`;
   }
   if (num >= 1000000) {
-    return `Rp ${(num / 1000000).toFixed(1)}M`;
+    return `Rp ${(num / 1000000).toFixed(1)} Juta`;
   }
   return `Rp ${num.toLocaleString('id-ID')}`;
 }
