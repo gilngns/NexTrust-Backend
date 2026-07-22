@@ -216,7 +216,6 @@ export async function simulateMilestoneFlow(req, res, next) {
     const paidDonations = await prisma.donation.findMany({
       where: { campaignId, status: "PAID" },
     });
-    const donationService = require("../services/donationService.js").default;
     for (const d of paidDonations) {
       try {
         await donationService.settleDonation(d.id);
