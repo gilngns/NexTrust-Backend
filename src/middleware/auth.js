@@ -14,6 +14,19 @@ export async function authenticate(req, res, next) {
   }
 }
 
+export async function optionalAuthenticate(req, res, next) {
+  const header = req.headers.authorization || "";
+  const token = header.startsWith("Bearer ") ? header.slice(7) : null;
+  if (!token) return next();
+
+  try {
+    req.user = await authService.verifyToken(token);
+  } catch (_) {
+    // Ignore verification errors for optional auth
+  }
+  return next();
+}
+
 export function authorize(...roles) {
   return (req, res, next) => {
     if (!req.user || !roles.includes(req.user.role)) {

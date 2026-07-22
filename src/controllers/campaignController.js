@@ -53,6 +53,7 @@ export async function donate(req, res, next) {
   try {
     const result = await donationService.initiate({
       campaignId: req.params.id,
+      donorId: req.user?.userId,
       donorName: req.body.donorName,
       amountRupiah: req.body.amount,
     });
@@ -68,6 +69,18 @@ export async function listDonations(req, res, next) {
       ok: true,
       donations: await donationService.listByCampaign(req.params.id),
     });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getDonorGraph(req, res, next) {
+  try {
+    const graphData = await donationService.getDonorGraph(req.params.id, req.user?.userId);
+    // Directly send the graphData without `ok: true` wrapper, since the user 
+    // asked for a specific JSON response format, or I can just send graphData directly.
+    // However, consistency is nice, let's just return the format exactly as requested.
+    res.json(graphData);
   } catch (error) {
     next(error);
   }

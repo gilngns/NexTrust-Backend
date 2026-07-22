@@ -8,7 +8,7 @@ import walletService from "./walletService.js";
 
 const XIDR_DECIMALS = 6;
 
-async function initiate({ campaignId, donorName, amountRupiah }) {
+async function initiate({ campaignId, donorId, donorName, amountRupiah }) {
   const campaign = await prisma.campaign.findUnique({
     where: { id: campaignId },
   });
@@ -29,6 +29,7 @@ async function initiate({ campaignId, donorName, amountRupiah }) {
   const donation = await prisma.donation.create({
     data: {
       campaignId,
+      donorId,
       donorName,
       donorAddress: donorWallet.address,
       amount: amountToken,
@@ -155,4 +156,64 @@ async function getStatusByOrderId(orderId) {
   };
 }
 
-export default { initiate, handleWebhook, listByCampaign, getStatusByOrderId, settleDonation };
+async function getDonorGraph(campaignId, currentUserId) {
+  const campaign = await prisma.campaign.findUnique({
+    where: { id: campaignId },
+    select: { id: true, title: true }
+  });
+  if (!campaign) throw AppError.notFound("Kampanye tidak ditemukan.");
+
+  const allDonations = await prisma.donation.findMany({
+    where: { campaignId, status: { in: ["DEPOSITED", "PAID"] } },
+    orderBy: { amount: "desc" },
+  });
+
+  const totalRaisedBigInt = allDonations.reduce((sum, d) => sum + d.amount, 0n);
+  const totalRaisedHuman = ethers.formatUnits(totalRaisedBigInt, XIDR_DECIMALS).split('.')[0];
+  const totalRaisedFormatted = `Rp${Number(totalRaisedHuman).toLocaleString('id-ID')}`;
+
+  const donorCount = allDonations.length;
+
+  let topDonations = allDonations.slice(0, 10);
+  
+  if (currentUserId) {
+    const currentUserDonations = allDonations.filter(d => d.donorId === currentUserId);
+    if (currentUserDonations.length > 0) {
+      const userDonationIds = new Set(currentUserDonations.map(d => d.id));
+      const hasUserDonation = topDonations.some(d => userDonationIds.has(d.id));
+      
+      if (!hasUserDonation) {
+        const largestUserDonation = currentUserDonations[0];
+        if (topDonations.length === 10) {
+          topDonations[9] = largestUserDonation;
+        } else {
+          topDonations.push(largestUserDonation);
+        }
+      }
+    }
+  }
+
+  const formattedDonations = topDonations.map(d => {
+    const amountHuman = ethers.formatUnits(d.amount, XIDR_DECIMALS).split('.')[0];
+    return {
+      id: d.id,
+      donorName: d.donorName || "Hamba Allah",
+      amount: amountHuman,
+      amountFormatted: `Rp${Number(amountHuman).toLocaleString('id-ID')}`,
+      status: d.status,
+      isCurrentUser: currentUserId ? (d.donorId === currentUserId) : false,
+      explorerUrl: d.txHashDeposit ? `https://amoy.polygonscan.com/tx/${d.txHashDeposit}` : null
+    };
+  });
+
+  return {
+    campaignId: campaign.id,
+    campaignName: campaign.title,
+    donorCount,
+    totalRaised: totalRaisedHuman,
+    totalRaisedFormatted,
+    donations: formattedDonations
+  };
+}
+
+export default { initiate, handleWebhook, listByCampaign, getStatusByOrderId, settleDonation, getDonorGraph };

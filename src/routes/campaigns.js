@@ -12,7 +12,7 @@ import {
   updateImageSchema,
 } from "../validations/campaign.schema.js";
 import { requestPayoutSchema } from "../validations/payout.schema.js";
-import { authenticate, authorize } from "../middleware/auth.js";
+import { authenticate, authorize, optionalAuthenticate } from "../middleware/auth.js";
 
 const router = express.Router();
 
@@ -36,8 +36,16 @@ router.post(
 router.get("/:id", asyncHandler(campaignController.getCampaignById));
 
 router.get("/:id/donations", asyncHandler(campaignController.listDonations));
+
+router.get(
+  "/:id/donor-graph",
+  optionalAuthenticate,
+  asyncHandler(campaignController.getDonorGraph),
+);
+
 router.post(
   "/:id/donations",
+  optionalAuthenticate,
   validate(donateSchema),
   asyncHandler(campaignController.donate),
 );
