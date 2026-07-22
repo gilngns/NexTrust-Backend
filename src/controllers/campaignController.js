@@ -282,6 +282,36 @@ export async function simulateMilestoneFlow(req, res, next) {
       throw AppError.badRequest("Dua bukti foto progres wajib diunggah untuk mencairkan milestone.");
     }
 
+    // Validasi AI: Pastikan setidaknya satu foto adalah nota (mengandung teks)
+    const aiUrl = process.env.AI_SERVICE_URL || "http://localhost:8000";
+    const aiToken = process.env.AI_INTERNAL_TOKEN || "";
+    try {
+      const checkReceipt = async (base64Img) => {
+        const b64Data = base64Img.replace(/^data:image\/\w+;base64,/, "");
+        const res = await fetch(`${aiUrl}/api/v1/ocr-assist`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Internal-Token": aiToken
+          },
+          body: JSON.stringify({ image_base64: b64Data })
+        });
+        if (!res.ok) return false;
+        const data = await res.json();
+        return data.raw_text && data.raw_text.trim().length > 10;
+      };
+
+      const hasReceipt1 = await checkReceipt(evidenceImage);
+      const hasReceipt2 = await checkReceipt(evidenceImage2);
+
+      if (!hasReceipt1 && !hasReceipt2) {
+        throw AppError.badRequest("Validasi AI Gagal: Tidak ditemukan nota/struk belanja pada foto yang diunggah. Pastikan salah satu foto adalah bukti pembelian (nota), bukan hanya foto kegiatan.");
+      }
+    } catch (err) {
+      if (err instanceof AppError) throw err;
+      console.warn("AI Microservice unreachable during simulateMilestoneFlow, skipping receipt validation.");
+    }
+
     const campaign = await prisma.campaign.findUnique({
       where: { id: campaignId },
       include: { milestones: { orderBy: { index: "asc" } } },
