@@ -609,10 +609,12 @@ paths:
                     example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
                   refreshToken:
                     type: string
-                    description: Refresh token BARU — simpan ke Secure Storage, token lama sudah di-revoke.
+                    description: Refresh token BARU — simpan ke Secure Storage, token lama sudah
+                      di-revoke.
                     example: b7c2de3f4a...
         "401":
-          description: Refresh token tidak valid / sudah expired / sudah di-revoke → paksa logout
+          description: Refresh token tidak valid / sudah expired / sudah di-revoke → paksa
+            logout
           content:
             application/json:
               schema:
@@ -708,7 +710,7 @@ paths:
                           example: "50000000000"
                         status:
                           type: string
-                          enum: [PENDING, PAID, DEPOSITED, FAILED, EXPIRED]
+                          enum: [ PENDING, PAID, DEPOSITED, FAILED, EXPIRED ]
                           example: DEPOSITED
                         orderId:
                           type: string
@@ -973,6 +975,147 @@ paths:
                 approve:
                   type: boolean
                   example: true
+      responses:
+        "200":
+          description: OK
+  /api/campaigns/{id}/donor-graph:
+    get:
+      tags:
+        - Campaign
+      summary: Dapatkan graph donatur campaign
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+  /api/campaigns/{id}/donations/{donationId}/simulate:
+    post:
+      tags:
+        - Donasi
+      summary: Simulasi penyelesaian donasi (Sandbox)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: donationId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+  /api/campaigns/{id}/image:
+    patch:
+      tags:
+        - Campaign
+      summary: Update image URL campaign
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: OK
+  /api/campaigns/{id}/approve:
+    put:
+      tags:
+        - Campaign
+      summary: Approve campaign (Dinsos/Admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+  /api/campaigns/{id}/reject:
+    put:
+      tags:
+        - Campaign
+      summary: Reject campaign (Dinsos/Admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+  /api/donations/{orderId}/status:
+    get:
+      tags:
+        - Donasi
+      summary: Cek status donasi by orderId
+      parameters:
+        - in: path
+          name: orderId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+  /api/notifications:
+    get:
+      tags:
+        - System
+      summary: Dapatkan list notifikasi
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: OK
+  /api/notifications/read:
+    post:
+      tags:
+        - System
+      summary: Tandai notifikasi sebagai dibaca
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: OK
+  /api/upload:
+    post:
+      tags:
+        - System
+      summary: Upload file (gambar/PDF)
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
       responses:
         "200":
           description: OK
