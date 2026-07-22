@@ -286,23 +286,34 @@ export async function simulateMilestoneFlow(req, res, next) {
     const aiUrl = process.env.AI_SERVICE_URL || "http://localhost:8000";
     const aiToken = process.env.AI_INTERNAL_TOKEN || "";
     try {
-      const checkReceipt = async (base64Img) => {
+      const checkReceipt = async (base64Img, idx) => {
         const b64Data = base64Img.replace(/^data:image\/\w+;base64,/, "");
-        const res = await fetch(`${aiUrl}/api/v1/ocr-assist`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Internal-Token": aiToken
-          },
-          body: JSON.stringify({ image_base64: b64Data })
-        });
-        if (!res.ok) return false;
-        const data = await res.json();
-        return data.raw_text && data.raw_text.trim().length > 10;
+        try {
+          const res = await fetch(`${aiUrl}/api/v1/ocr-assist`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-Internal-Token": aiToken
+            },
+            body: JSON.stringify({ image_base64: b64Data })
+          });
+          if (!res.ok) {
+            console.warn(`[AI Validation] HTTP ${res.status} from ocr-assist for image ${idx}`);
+            return true; // Jika AI error/401, biarkan lolos daripada memblokir user secara salah
+          }
+          const data = await res.json();
+          // Nota tulis tangan kadang hanya terdeteksi sedikit teks oleh OCR
+          const textLength = data.raw_text ? data.raw_text.trim().length : 0;
+          console.log(`[AI Validation] Image ${idx} extracted text length: ${textLength}`);
+          return textLength >= 3; // Sangat longgar, asalkan ada teks yang terbaca
+        } catch (e) {
+          console.warn(`[AI Validation] Fetch failed for image ${idx}:`, e.message);
+          return true; // Jika koneksi ke AI gagal, biarkan lolos
+        }
       };
 
-      const hasReceipt1 = await checkReceipt(evidenceImage);
-      const hasReceipt2 = await checkReceipt(evidenceImage2);
+      const hasReceipt1 = await checkReceipt(evidenceImage, 1);
+      const hasReceipt2 = await checkReceipt(evidenceImage2, 2);
 
       if (!hasReceipt1 && !hasReceipt2) {
         throw AppError.badRequest("Validasi AI Gagal: Tidak ditemukan nota/struk belanja pada foto yang diunggah. Pastikan salah satu foto adalah bukti pembelian (nota), bukan hanya foto kegiatan.");
