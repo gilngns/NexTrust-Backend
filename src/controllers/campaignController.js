@@ -223,28 +223,42 @@ export async function simulateMilestoneFlow(req, res, next) {
       throw AppError.badRequest("Target donasi belum tercapai penuh. Tidak dapat mencairkan milestone.");
     }
 
-    // 1. Submit Milestone (Mock Evidence)
-    await milestoneService.submit({
-      campaignId,
-      index,
-      evidenceCID: "QmSimulatedEvidenceForDemo" + Date.now(),
+    const existingMilestone = await prisma.milestone.findUnique({
+      where: { campaignId_index: { campaignId, index } },
     });
+
+    // 1. Submit Milestone (Mock Evidence)
+    if (!existingMilestone || existingMilestone.status === "PENDING") {
+      await milestoneService.submit({
+        campaignId,
+        index,
+        evidenceCID: "QmSimulatedEvidenceForDemo" + Date.now(),
+      });
+    }
 
     // 2. Score Milestone (Mock AI Score 95 = APPROVED)
-    await milestoneService.submitScore({
-      campaignId,
-      index,
-      score: 95,
-      nonce: Math.floor(Date.now() / 1000),
-    });
+    if (!existingMilestone || ["PENDING", "SUBMITTED", "EVALUATING"].includes(existingMilestone.status)) {
+      await milestoneService.submitScore({
+        campaignId,
+        index,
+        score: 95,
+        nonce: Math.floor(Date.now() / 1000),
+      });
+    }
 
     // 3. Release Milestone
-    const result = await milestoneService.release({
-      campaignId,
-      index,
+    if (!existingMilestone || existingMilestone.status !== "RELEASED") {
+      await milestoneService.release({
+        campaignId,
+        index,
+      });
+    }
+
+    const finalMilestone = await prisma.milestone.findUnique({
+      where: { campaignId_index: { campaignId, index } },
     });
 
-    res.json({ ok: true, milestone: result, message: "Milestone dicairkan dengan simulasi AI berhasil (Platform Fee 3% telah dipotong)." });
+    res.json({ ok: true, milestone: finalMilestone, message: "Milestone dicairkan dengan simulasi AI berhasil (Platform Fee 3% telah dipotong)." });
   } catch (error) {
     next(error);
   }

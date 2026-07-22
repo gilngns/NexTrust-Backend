@@ -77,7 +77,7 @@ async function autoDisburse({ campaignId, amountUnits, label }) {
   if (!campaign) throw AppError.notFound("Kampanye tidak ditemukan.");
 
   const foundation = campaign.foundation;
-  const grossAmount = BigInt(amountUnits);
+  const grossAmount = BigInt(amountUnits || 0);
   const platformFee = (grossAmount * 3n) / 100n;
   const netAmount = grossAmount - platformFee;
 
