@@ -231,8 +231,8 @@ export async function simulateMilestoneFlow(req, res, next) {
       const onChainState = await contractService.getCampaignState(campaign.onChainId);
       
       if (Number(onChainState) === 1) { // 1 = ACTIVE
-        const lockedFunds = await contractService.getLockedFunds(campaign.onChainId);
-        const difference = BigInt(campaign.targetAmount) - BigInt(lockedFunds);
+        const campaignData = await contractService.getCampaign(campaign.onChainId);
+        const difference = BigInt(campaign.targetAmount) - BigInt(campaignData.totalCollected);
         
         if (difference > 0n) {
           console.log(`[simulateMilestoneFlow] Force depositing ${difference} to reach target!`);
@@ -243,7 +243,7 @@ export async function simulateMilestoneFlow(req, res, next) {
           await contractService.depositXIDR({
             campaignIdStr: campaign.onChainId,
             amount: difference,
-            donorAddress: "0x0000000000000000000000000000000000000000",
+            donorAddress: tokenService.backendWallet.address,
           });
           
           // Also call releaseAdvance if it's required before submitMilestone
@@ -260,6 +260,7 @@ export async function simulateMilestoneFlow(req, res, next) {
       }
     } catch (err) {
       console.error("[simulateMilestoneFlow] Force deposit failed:", err);
+      throw new Error(`Force deposit gagal: ${err.message || err}`);
     }
 
     const donations = await prisma.donation.findMany({
