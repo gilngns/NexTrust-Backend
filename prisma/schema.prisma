@@ -87,6 +87,7 @@ model Milestone {
   title          String?
   amount         BigInt?
   evidenceCID    String?
+  evidenceUrl    String?
   metadataHash   String?
   latitude       Float?
   longitude      Float?

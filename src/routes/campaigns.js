@@ -93,6 +93,13 @@ router.post(
 );
 
 router.post(
+  "/:id/advances/simulate",
+  authenticate,
+  authorize("FOUNDATION", "ADMIN"),
+  asyncHandler(campaignController.simulateReleaseAdvance),
+);
+
+router.post(
   "/:id/advances/releases",
   authenticate,
   authorize("ADMIN", "FOUNDATION"),

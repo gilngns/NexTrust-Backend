@@ -203,116 +203,176 @@ export async function simulateDonation(req, res, next) {
   }
 }
 
+// ── Simulasi Cairkan Dana Awal (DP) ──────────────────────
+// Tidak butuh bukti foto. Tinggal klik tombol.
+export async function simulateReleaseAdvance(req, res, next) {
+  try {
+    const { id: campaignId } = req.params;
+
+    if (config.midtrans.isProduction) {
+      throw AppError.forbidden("Endpoint simulasi tidak tersedia di environment production.");
+    }
+
+    const campaign = await prisma.campaign.findUnique({
+      where: { id: campaignId },
+    });
+    if (!campaign) throw AppError.notFound("Campaign tidak ditemukan.");
+
+    // Cek apakah DP sudah dicairkan
+    if (["ADVANCE_PAID", "COMPLETED"].includes(campaign.status)) {
+      return res.json({ ok: true, message: "Dana awal sudah dicairkan sebelumnya." });
+    }
+
+    // Validasi: donasi sudah cukup
+    const donations = await prisma.donation.findMany({
+      where: { campaignId, status: { in: ["PAID", "DEPOSITED"] } },
+    });
+    const collectedAmount = donations.reduce((sum, d) => sum + d.amount, 0n);
+    if (collectedAmount < campaign.targetAmount) {
+      throw AppError.badRequest("Target donasi belum tercapai. Tidak dapat mencairkan dana awal.");
+    }
+
+    // Update status campaign
+    await prisma.campaign.update({
+      where: { id: campaignId },
+      data: { status: "ADVANCE_PAID" },
+    });
+
+    // Coba autoDisburse DP
+    let payout = null;
+    let payoutWarning = null;
+    try {
+      const payoutService = (await import("../services/payoutService.js")).default;
+      payout = await payoutService.autoDisburse({
+        campaignId,
+        amountUnits: campaign.advanceAmount,
+        label: "Uang Muka (DP)",
+      });
+    } catch (err) {
+      payoutWarning = err.message;
+      console.warn(`[simulateReleaseAdvance] autoDisburse gagal:`, err.message);
+    }
+
+    res.json({
+      ok: true,
+      payout,
+      payoutWarning,
+      message: "Dana awal (DP) berhasil dicairkan!",
+    });
+  } catch (error) {
+    console.error("[simulateReleaseAdvance] Error:", error);
+    if (error.statusCode) return next(error);
+    res.status(500).json({ ok: false, message: error.message || "Terjadi kesalahan." });
+  }
+}
+
+// ── Simulasi Cairkan Milestone (Butuh Bukti Foto) ────────
 export async function simulateMilestoneFlow(req, res, next) {
   try {
     const { id: campaignId, index: indexStr } = req.params;
     const index = Number(indexStr);
 
-    const campaign = await prisma.campaign.findUnique({ where: { id: campaignId } });
+    if (config.midtrans.isProduction) {
+      throw AppError.forbidden("Endpoint simulasi tidak tersedia di environment production.");
+    }
+
+    // Bukti foto WAJIB untuk milestone
+    const { evidenceImage } = req.body;
+    if (!evidenceImage) {
+      throw AppError.badRequest("Bukti foto progres wajib diunggah untuk mencairkan milestone.");
+    }
+
+    const campaign = await prisma.campaign.findUnique({
+      where: { id: campaignId },
+      include: { milestones: { orderBy: { index: "asc" } } },
+    });
     if (!campaign) throw AppError.notFound("Campaign tidak ditemukan.");
 
-    // Auto-settle all PAID donations so that they are deposited to the smart contract.
-    // This ensures the smart contract state changes from ACTIVE (1) to FUNDED (2).
-    const paidDonations = await prisma.donation.findMany({
-      where: { campaignId, status: "PAID" },
-    });
-    for (const d of paidDonations) {
-      try {
-        await donationService.settleDonation(d.id);
-      } catch (err) {
-        console.error(`[simulateMilestoneFlow] Auto-settle failed for donasi ${d.id}:`, err);
-      }
+    // Validasi: DP harus sudah dicairkan dulu
+    if (!["ADVANCE_PAID", "COMPLETED"].includes(campaign.status)) {
+      throw AppError.badRequest("Dana awal (DP) harus dicairkan terlebih dahulu.");
     }
 
-    // FORCE ESCROW STATE TO FUNDED IF STILL ACTIVE
-    try {
-      const contractService = (await import("../services/contractService.js")).default;
-      const tokenService = (await import("../services/tokenService.js")).default;
-      const onChainState = await contractService.getCampaignState(campaign.onChainId);
-      
-      if (Number(onChainState) === 1) { // 1 = ACTIVE
-        const campaignData = await contractService.getCampaign(campaign.onChainId);
-        const difference = BigInt(campaign.targetAmount) - BigInt(campaignData.totalCollected);
-        
-        if (difference > 0n) {
-          console.log(`[simulateMilestoneFlow] Force depositing ${difference} to reach target!`);
-          const { ethers } = await import("ethers");
-          const diffHuman = ethers.formatUnits(difference, 6);
-          await tokenService.mint(tokenService.backendWallet.address, diffHuman);
-          await tokenService.approveEscrow(diffHuman);
-          await contractService.depositXIDR({
-            campaignIdStr: campaign.onChainId,
-            amount: difference,
-            donorAddress: tokenService.backendWallet.address,
-          });
-          
-          // Also call releaseAdvance if it's required before submitMilestone
-          // since the campaign just became FUNDED!
-          const milestoneService = (await import("../services/milestoneService.js")).default;
-          if (campaign.advanceAmount && campaign.status !== "ADVANCE_PAID") {
-            try {
-              await milestoneService.releaseAdvance(campaign.id);
-            } catch (err) {
-              console.warn("Auto releaseAdvance failed:", err);
-            }
-          }
-        }
-      }
-    } catch (err) {
-      console.error("[simulateMilestoneFlow] Force deposit failed:", err);
-      throw new Error(`Force deposit gagal: ${err.message || err}`);
-    }
-
+    // Validasi: donasi sudah cukup
     const donations = await prisma.donation.findMany({
-      where: {
-        campaignId,
-        status: { in: ["PAID", "DEPOSITED"] },
-      },
+      where: { campaignId, status: { in: ["PAID", "DEPOSITED"] } },
     });
     const collectedAmount = donations.reduce((sum, d) => sum + d.amount, 0n);
-
     if (collectedAmount < campaign.targetAmount) {
-      throw AppError.badRequest("Target donasi belum tercapai penuh. Tidak dapat mencairkan milestone.");
+      throw AppError.badRequest("Target donasi belum tercapai penuh.");
+    }
+
+    // Validasi: milestone harus berurutan (milestone sebelumnya harus RELEASED)
+    if (index > 0) {
+      const prevMilestone = campaign.milestones.find((m) => m.index === index - 1);
+      if (!prevMilestone || prevMilestone.status !== "RELEASED") {
+        throw AppError.badRequest(`Milestone ${index} harus dicairkan terlebih dahulu sebelum Milestone ${index + 1}.`);
+      }
     }
 
     const existingMilestone = await prisma.milestone.findUnique({
       where: { campaignId_index: { campaignId, index } },
     });
-
-    // 1. Submit Milestone (Mock Evidence)
-    if (!existingMilestone || existingMilestone.status === "PENDING") {
-      await milestoneService.submit({
-        campaignId,
-        index,
-        evidenceCID: "QmSimulatedEvidenceForDemo" + Date.now(),
-      });
+    if (!existingMilestone) throw AppError.notFound("Milestone tidak ditemukan.");
+    if (existingMilestone.status === "RELEASED") {
+      return res.json({ ok: true, milestone: existingMilestone, message: "Milestone ini sudah dicairkan sebelumnya." });
     }
 
-    // 2. Score Milestone (Mock AI Score 95 = APPROVED)
-    if (!existingMilestone || ["PENDING", "SUBMITTED", "EVALUATING"].includes(existingMilestone.status)) {
-      await milestoneService.submitScore({
-        campaignId,
-        index,
-        score: 95,
-        nonce: Math.floor(Date.now() / 1000),
-      });
-    }
+    // Simpan foto bukti (base64 → file)
+    const { saveBase64File } = await import("../utils/fileUpload.js");
+    const evidenceUrl = saveBase64File(evidenceImage);
+    const evidenceCID = "QmEvidence_" + Date.now() + "_ms" + index;
 
-    // 3. Release Milestone
-    if (!existingMilestone || existingMilestone.status !== "RELEASED") {
-      await milestoneService.release({
-        campaignId,
-        index,
-      });
-    }
+    const mockTxHash = "0xSIM" + Date.now().toString(16) + index.toString(16).padStart(4, "0");
 
-    const finalMilestone = await prisma.milestone.findUnique({
+    // Update milestone → RELEASED
+    const updatedMilestone = await prisma.milestone.update({
       where: { campaignId_index: { campaignId, index } },
+      data: {
+        status: "RELEASED",
+        aiScore: 95,
+        evidenceCID,
+        evidenceUrl,
+        txHashSubmit: mockTxHash,
+        txHashRelease: mockTxHash,
+      },
     });
 
-    res.json({ ok: true, milestone: finalMilestone, message: "Milestone dicairkan dengan simulasi AI berhasil (Platform Fee 3% telah dipotong)." });
+    // Coba autoDisburse
+    let payout = null;
+    let payoutWarning = null;
+    try {
+      const payoutService = (await import("../services/payoutService.js")).default;
+      payout = await payoutService.autoDisburse({
+        campaignId,
+        amountUnits: existingMilestone.amount,
+        label: `Milestone #${index + 1}`,
+      });
+    } catch (err) {
+      payoutWarning = err.message;
+      console.warn(`[simulateMilestoneFlow] autoDisburse gagal:`, err.message);
+    }
+
+    // Cek apakah semua milestone sudah RELEASED → COMPLETED
+    const allMilestones = await prisma.milestone.findMany({ where: { campaignId } });
+    const allReleased = allMilestones.every((m) => m.status === "RELEASED");
+    if (allReleased) {
+      await prisma.campaign.update({
+        where: { id: campaignId },
+        data: { status: "COMPLETED" },
+      });
+    }
+
+    res.json({
+      ok: true,
+      milestone: updatedMilestone,
+      payout,
+      payoutWarning,
+      message: `Milestone ${index + 1} berhasil dicairkan! (Platform Fee 3% telah dipotong)`,
+    });
   } catch (error) {
-    console.error("[simulateMilestoneFlow] Error detail:", error);
-    res.status(500).json({ ok: false, message: `Error detail: ${error.message || error.toString()}` });
+    console.error("[simulateMilestoneFlow] Error:", error);
+    if (error.statusCode) return next(error);
+    res.status(500).json({ ok: false, message: error.message || "Terjadi kesalahan." });
   }
 }
