@@ -211,6 +211,20 @@ export async function simulateMilestoneFlow(req, res, next) {
     const campaign = await prisma.campaign.findUnique({ where: { id: campaignId } });
     if (!campaign) throw AppError.notFound("Campaign tidak ditemukan.");
 
+    // Auto-settle all PAID donations so that they are deposited to the smart contract.
+    // This ensures the smart contract state changes from ACTIVE (1) to FUNDED (2).
+    const paidDonations = await prisma.donation.findMany({
+      where: { campaignId, status: "PAID" },
+    });
+    const donationService = require("../services/donationService.js").default;
+    for (const d of paidDonations) {
+      try {
+        await donationService.settleDonation(d.id);
+      } catch (err) {
+        console.error(`[simulateMilestoneFlow] Auto-settle failed for donasi ${d.id}:`, err);
+      }
+    }
+
     const donations = await prisma.donation.findMany({
       where: {
         campaignId,
