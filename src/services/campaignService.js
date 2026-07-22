@@ -390,6 +390,7 @@ async function planMilestones(payload) {
       }
     };
   }
+}
 
 async function validateMilestoneStructure(payload) {
   const aiUrl = process.env.AI_SERVICE_URL || "http://localhost:8000";
