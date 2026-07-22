@@ -9,6 +9,7 @@ import transactionRoutes from "./transactions.js";
 import notificationRoutes from "./notifications.js";
 import uploadRoutes from "./uploadRouter.js";
 import donationRoutes from "./donation.js";
+import dashboardRoutes from "./dashboard.js";
 
 const router = express.Router();
 
@@ -22,5 +23,6 @@ router.use("/transactions", transactionRoutes);
 router.use("/notifications", notificationRoutes);
 router.use("/upload", uploadRoutes);
 router.use("/donations", donationRoutes);
+router.use("/dashboard", dashboardRoutes);
 
 export default router;
