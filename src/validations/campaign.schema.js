@@ -15,7 +15,16 @@ export const createCampaignSchema = z.object({
         .number()
         .int()
         .min(2, "Minimal 2 milestone")
-        .max(6, "Maksimal 6 milestone"),
+        .max(6, "Maksimal 6 milestone")
+        .optional(),
+      milestones: z.array(z.object({
+        order: z.number().int().optional(),
+        title: z.string().optional(),
+        percentage: z.number().optional(),
+        amount: z.number().optional(),
+        evidence_types: z.array(z.string()).optional(),
+        item_ids: z.array(z.string()).optional()
+      })).optional(),
       rabCID: z.string().optional(),
       izinPub: z.string().min(1, "Surat izin PUB wajib diisi"),
       imageUrl: z.string().optional(),

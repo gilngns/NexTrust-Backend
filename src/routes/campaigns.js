@@ -26,6 +26,20 @@ router.post(
 );
 
 router.post(
+  "/plan-milestones",
+  authenticate,
+  authorize("FOUNDATION", "DINSOS", "ADMIN"),
+  asyncHandler(campaignController.planMilestones)
+);
+
+router.post(
+  "/validate-milestone-structure",
+  authenticate,
+  authorize("FOUNDATION", "DINSOS", "ADMIN"),
+  asyncHandler(campaignController.validateMilestoneStructure)
+);
+
+router.post(
   "/",
   authenticate,
   authorize("FOUNDATION", "ADMIN"),

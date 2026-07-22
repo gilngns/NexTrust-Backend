@@ -75,10 +75,43 @@ const create = async (payload) => {
   const targetToken = ethers.parseUnits(tAmt.toString(), 6);
   const advanceToken = ethers.parseUnits(aAmt.toString(), 6);
   const milestoneTotal = targetToken - advanceToken;
-  const milestoneAmounts = progressiveRetentionSplit(
-    milestoneTotal,
-    totalMilestones,
-  );
+  
+  let milestoneAmounts = [];
+  let dbMilestones = [];
+
+  if (payload.milestones && payload.milestones.length > 0) {
+    // Custom structure
+    for (let i = 0; i < payload.milestones.length; i++) {
+      const m = payload.milestones[i];
+      let amtToken;
+      if (m.amount) {
+        amtToken = ethers.parseUnits(m.amount.toString(), 6);
+      } else if (m.percentage) {
+        // percentage is like 40.5
+        const amtStr = ((tAmt * m.percentage) / 100).toFixed(6);
+        amtToken = ethers.parseUnits(amtStr.toString(), 6);
+      } else {
+        throw AppError.badRequest("Milestone must have amount or percentage");
+      }
+      milestoneAmounts.push(amtToken);
+      dbMilestones.push({
+        index: m.order || (i + 1),
+        title: m.title || `Milestone ${i + 1}`,
+        amount: amtToken,
+      });
+    }
+  } else {
+    // Fallback to auto-split
+    milestoneAmounts = progressiveRetentionSplit(
+      milestoneTotal,
+      totalMilestones || 2,
+    );
+    dbMilestones = Array.from({ length: totalMilestones || 2 }, (_, i) => ({
+      index: i + 1,
+      title: `Milestone ${i + 1}`,
+      amount: milestoneAmounts[i],
+    }));
+  }
 
   const onchain = await contractService.createCampaign({
     campaignIdStr: onChainId,
@@ -103,7 +136,7 @@ const create = async (payload) => {
       targetAmount: targetToken,
       advanceAmount: advanceToken,
       milestoneAmount: milestoneTotal,
-      totalMilestones,
+      totalMilestones: dbMilestones.length,
       foundationId,
       beneficiary,
       latitude,
@@ -112,14 +145,10 @@ const create = async (payload) => {
       aiScore,
       aiNotes,
       rabData,
-      status: (aiScore !== undefined && aiScore < 85) ? "EVALUATING" : "ACTIVE",
+      status: (aiScore !== undefined && aiScore < 85) ? "DRAFT" : "ACTIVE", // Updated to DRAFT if evaluating
       txHashCreate: onchain.txHash,
       milestones: {
-        create: Array.from({ length: totalMilestones }, (_, i) => ({
-          index: i,
-          title: `Milestone ${i + 1}`,
-          amount: milestoneAmounts[i], 
-        })),
+        create: dbMilestones,
       },
     },
     include: { milestones: true },
@@ -321,4 +350,64 @@ async function reject(id) {
   return await _serialize(campaign);
 }
 
-export default { create, list, getById, generateDraftPlan, updateImage, approve, reject };
+async function planMilestones(payload) {
+  const aiUrl = process.env.AI_SERVICE_URL || "http://localhost:8000";
+  const aiToken = process.env.AI_INTERNAL_TOKEN || "";
+
+  try {
+    const res = await fetch(`${aiUrl}/api/v1/plan-milestones`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Internal-Token": aiToken
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      throw AppError.badRequest(`Failed to plan milestones: ${errText}`);
+    }
+
+    return await res.json();
+  } catch (error) {
+    throw AppError.internal("Gagal terhubung ke AI Service");
+  }
+}
+
+async function validateMilestoneStructure(payload) {
+  const aiUrl = process.env.AI_SERVICE_URL || "http://localhost:8000";
+  const aiToken = process.env.AI_INTERNAL_TOKEN || "";
+  
+  try {
+    const res = await fetch(`${aiUrl}/api/v1/validate-milestone-structure`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Internal-Token": aiToken
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      throw AppError.badRequest(`Failed to validate milestone structure: ${errText}`);
+    }
+
+    return await res.json();
+  } catch (error) {
+    throw AppError.internal("Gagal terhubung ke AI Service");
+  }
+}
+
+export default { 
+  create, 
+  list, 
+  getById, 
+  generateDraftPlan, 
+  updateImage, 
+  approve, 
+  reject,
+  planMilestones,
+  validateMilestoneStructure 
+};

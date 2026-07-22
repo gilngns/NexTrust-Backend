@@ -100,6 +100,24 @@ export async function submitMilestone(req, res, next) {
   }
 }
 
+export async function planMilestones(req, res, next) {
+  try {
+    const result = await campaignService.planMilestones(req.body);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function validateMilestoneStructure(req, res, next) {
+  try {
+    const result = await campaignService.validateMilestoneStructure(req.body);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function scoreMilestone(req, res, next) {
   try {
     const result = await milestoneService.submitScore({
