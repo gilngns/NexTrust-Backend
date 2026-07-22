@@ -224,6 +224,44 @@ export async function simulateMilestoneFlow(req, res, next) {
       }
     }
 
+    // FORCE ESCROW STATE TO FUNDED IF STILL ACTIVE
+    try {
+      const contractService = (await import("../services/contractService.js")).default;
+      const tokenService = (await import("../services/tokenService.js")).default;
+      const onChainState = await contractService.getCampaignState(campaign.onChainId);
+      
+      if (Number(onChainState) === 1) { // 1 = ACTIVE
+        const lockedFunds = await contractService.getLockedFunds(campaign.onChainId);
+        const difference = BigInt(campaign.targetAmount) - BigInt(lockedFunds);
+        
+        if (difference > 0n) {
+          console.log(`[simulateMilestoneFlow] Force depositing ${difference} to reach target!`);
+          const { ethers } = await import("ethers");
+          const diffHuman = ethers.formatUnits(difference, 6);
+          await tokenService.mint(tokenService.backendWallet.address, diffHuman);
+          await tokenService.approveEscrow(diffHuman);
+          await contractService.depositXIDR({
+            campaignIdStr: campaign.onChainId,
+            amount: difference,
+            donorAddress: "0x0000000000000000000000000000000000000000",
+          });
+          
+          // Also call releaseAdvance if it's required before submitMilestone
+          // since the campaign just became FUNDED!
+          const milestoneService = (await import("../services/milestoneService.js")).default;
+          if (campaign.advanceAmount && campaign.status !== "ADVANCE_PAID") {
+            try {
+              await milestoneService.releaseAdvance(campaign.id);
+            } catch (err) {
+              console.warn("Auto releaseAdvance failed:", err);
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.error("[simulateMilestoneFlow] Force deposit failed:", err);
+    }
+
     const donations = await prisma.donation.findMany({
       where: {
         campaignId,
