@@ -134,10 +134,34 @@ const create = async (payload) => {
   return await _serialize(campaign);
 };
 
-async function list(status) {
+async function list(status, pageQuery, limitQuery) {
+  const where = status ? { status } : undefined;
+  
+  // Default to returning all if pagination isn't provided, to preserve backward compatibility for old endpoints
+  let skip = undefined;
+  let take = undefined;
+  let pagination = null;
+
+  if (pageQuery || limitQuery) {
+    const page = parseInt(pageQuery) || 1;
+    const limit = parseInt(limitQuery) || 10;
+    skip = (page - 1) * limit;
+    take = limit;
+    
+    const total = await prisma.campaign.count({ where });
+    pagination = {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
   const campaigns = await prisma.campaign.findMany({
-    where: status ? { status } : undefined,
+    where,
     orderBy: { createdAt: "desc" },
+    skip,
+    take,
     include: { 
       foundation: { select: { name: true } },
       milestones: true,
@@ -146,7 +170,8 @@ async function list(status) {
       }
     },
   });
-  return await Promise.all(campaigns.map(async (c) => {
+  
+  const serializedCampaigns = await Promise.all(campaigns.map(async (c) => {
     const serialized = await _serialize(c);
     
     const successfulDonations = c.donations
@@ -170,6 +195,12 @@ async function list(status) {
 
     return serialized;
   }));
+
+  if (pagination) {
+    return { campaigns: serializedCampaigns, pagination };
+  }
+  
+  return { campaigns: serializedCampaigns };
 }
 
 async function getById(id) {

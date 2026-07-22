@@ -8,9 +8,10 @@ import AppError from "../utils/AppError.js";
 
 export async function listCampaigns(req, res, next) {
   try {
+    const { status, page, limit } = req.query;
     res.json({
       ok: true,
-      campaigns: await campaignService.list(req.query.status),
+      ...(await campaignService.list(status, page, limit)),
     });
   } catch (error) {
     next(error);
