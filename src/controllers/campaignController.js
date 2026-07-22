@@ -260,6 +260,7 @@ export async function simulateMilestoneFlow(req, res, next) {
 
     res.json({ ok: true, milestone: finalMilestone, message: "Milestone dicairkan dengan simulasi AI berhasil (Platform Fee 3% telah dipotong)." });
   } catch (error) {
-    next(error);
+    console.error("[simulateMilestoneFlow] Error detail:", error);
+    res.status(500).json({ ok: false, message: `Error detail: ${error.message || error.toString()}` });
   }
 }
