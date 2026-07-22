@@ -202,3 +202,50 @@ export async function simulateDonation(req, res, next) {
     next(error);
   }
 }
+
+export async function simulateMilestoneFlow(req, res, next) {
+  try {
+    const { id: campaignId, index: indexStr } = req.params;
+    const index = Number(indexStr);
+
+    const campaign = await prisma.campaign.findUnique({ where: { id: campaignId } });
+    if (!campaign) throw AppError.notFound("Campaign tidak ditemukan.");
+
+    const donations = await prisma.donation.findMany({
+      where: {
+        campaignId,
+        status: { in: ["PAID", "DEPOSITED"] },
+      },
+    });
+    const collectedAmount = donations.reduce((sum, d) => sum + d.amount, 0n);
+
+    if (collectedAmount < campaign.targetAmount) {
+      throw AppError.badRequest("Target donasi belum tercapai penuh. Tidak dapat mencairkan milestone.");
+    }
+
+    // 1. Submit Milestone (Mock Evidence)
+    await milestoneService.submit({
+      campaignId,
+      index,
+      evidenceCID: "QmSimulatedEvidenceForDemo" + Date.now(),
+    });
+
+    // 2. Score Milestone (Mock AI Score 95 = APPROVED)
+    await milestoneService.submitScore({
+      campaignId,
+      index,
+      score: 95,
+      nonce: Math.floor(Date.now() / 1000),
+    });
+
+    // 3. Release Milestone
+    const result = await milestoneService.release({
+      campaignId,
+      index,
+    });
+
+    res.json({ ok: true, milestone: result, message: "Milestone dicairkan dengan simulasi AI berhasil (Platform Fee 3% telah dipotong)." });
+  } catch (error) {
+    next(error);
+  }
+}

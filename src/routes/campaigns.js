@@ -79,6 +79,13 @@ router.post(
 );
 
 router.post(
+  "/:id/milestones/:index/simulate",
+  authenticate,
+  authorize("FOUNDATION", "ADMIN"),
+  asyncHandler(campaignController.simulateMilestoneFlow),
+);
+
+router.post(
   "/:id/milestones/:index/releases",
   authenticate,
   authorize("ADMIN", "FOUNDATION"),

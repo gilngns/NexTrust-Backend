@@ -77,7 +77,9 @@ async function autoDisburse({ campaignId, amountUnits, label }) {
   if (!campaign) throw AppError.notFound("Kampanye tidak ditemukan.");
 
   const foundation = campaign.foundation;
-  const amount = BigInt(amountUnits);
+  const grossAmount = BigInt(amountUnits);
+  const platformFee = (grossAmount * 3n) / 100n;
+  const netAmount = grossAmount - platformFee;
 
   if (!foundation.bankAccountNo || !foundation.bankName) {
     // Dana tetap "aman" di wallet custodial yayasan (belum di-burn), hanya
@@ -86,9 +88,9 @@ async function autoDisburse({ campaignId, amountUnits, label }) {
       data: {
         campaignId,
         foundationId: foundation.id,
-        amount,
+        amount: netAmount,
         status: "PENDING",
-        note: `${label}: menunggu yayasan melengkapi data rekening bank.`,
+        note: `${label}: menunggu data rekening bank. (Nominal telah dipotong platform fee 3%)`,
       },
     });
     await _notifyFoundation(foundation.id, {
@@ -103,11 +105,11 @@ async function autoDisburse({ campaignId, amountUnits, label }) {
     data: {
       campaignId,
       foundationId: foundation.id,
-      amount,
+      amount: netAmount,
       status: "PENDING",
       bankName: foundation.bankName,
       bankAccountNo: foundation.bankAccountNo,
-      note: `${label}: memproses pencairan ke rekening.`,
+      note: `${label}: memproses pencairan. (Termasuk potongan fee 3%)`,
     },
   });
 
@@ -118,7 +120,7 @@ async function autoDisburse({ campaignId, amountUnits, label }) {
   // kehabisan POL buat gas) TIDAK BOLEH menahan pencairan rupiah yayasan.
   let burnTxHash = null;
   try {
-    const humanAmount = ethers.formatUnits(amount, XIDR_DECIMALS);
+    const humanAmount = ethers.formatUnits(grossAmount, XIDR_DECIMALS);
     const burnResult = await tokenService.burnFromFoundation(
       foundation.encryptedKey,
       humanAmount,
@@ -133,12 +135,12 @@ async function autoDisburse({ campaignId, amountUnits, label }) {
   const { referenceNo } = await _transferToBank({
     bankName: foundation.bankName,
     bankAccountNo: foundation.bankAccountNo,
-    amountRupiah: ethers.formatUnits(amount, XIDR_DECIMALS),
+    amountRupiah: ethers.formatUnits(netAmount, XIDR_DECIMALS),
   });
 
   const note = burnTxHash
-    ? `${label}: dana cair ke rekening (simulasi). XIDR dikirim ke burn address — tx ${burnTxHash}.`
-    : `${label}: dana cair ke rekening (simulasi). Transfer XIDR ke burn address gagal — cek saldo POL wallet yayasan.`;
+    ? `${label}: dana cair ke rekening (Potongan Fee 3%). XIDR di-burn: tx ${burnTxHash}.`
+    : `${label}: dana cair ke rekening (Potongan Fee 3%). Transfer XIDR ke burn address gagal.`;
 
   const updated = await prisma.payout.update({
     where: { id: payout.id },
@@ -148,8 +150,8 @@ async function autoDisburse({ campaignId, amountUnits, label }) {
 
   await _notifyFoundation(foundation.id, {
     title: "Dana cair ke rekening",
-    message: `${label} sebesar Rp${Number(
-      ethers.formatUnits(amount, XIDR_DECIMALS),
+    message: `${label} bersih sebesar Rp${Number(
+      ethers.formatUnits(netAmount, XIDR_DECIMALS),
     ).toLocaleString("id-ID")} sudah masuk ke rekening ${foundation.bankName} ****${foundation.bankAccountNo.slice(-4)}.`,
     link: `/yayasan/donations`,
   });
