@@ -277,9 +277,9 @@ export async function simulateMilestoneFlow(req, res, next) {
     }
 
     // Bukti foto WAJIB untuk milestone
-    const { evidenceImage } = req.body;
-    if (!evidenceImage) {
-      throw AppError.badRequest("Bukti foto progres wajib diunggah untuk mencairkan milestone.");
+    const { evidenceImage, evidenceImage2 } = req.body;
+    if (!evidenceImage || !evidenceImage2) {
+      throw AppError.badRequest("Dua bukti foto progres wajib diunggah untuk mencairkan milestone.");
     }
 
     const campaign = await prisma.campaign.findUnique({
@@ -321,6 +321,7 @@ export async function simulateMilestoneFlow(req, res, next) {
     // Simpan foto bukti (base64 → file)
     const { saveBase64File } = await import("../utils/fileUpload.js");
     const evidenceUrl = saveBase64File(evidenceImage);
+    const evidenceUrl2 = saveBase64File(evidenceImage2);
     const evidenceCID = "QmEvidence_" + Date.now() + "_ms" + index;
 
     const mockTxHash = "0xSIM" + Date.now().toString(16) + index.toString(16).padStart(4, "0");
@@ -333,6 +334,7 @@ export async function simulateMilestoneFlow(req, res, next) {
         aiScore: 95,
         evidenceCID,
         evidenceUrl,
+        evidenceUrl2,
         txHashSubmit: mockTxHash,
         txHashRelease: mockTxHash,
       },

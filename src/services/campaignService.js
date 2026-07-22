@@ -30,6 +30,7 @@ async function _serialize(campaign) {
       ...m,
       amount: m.amount !== undefined && m.amount !== null ? Math.round(Number(ethers.formatUnits(m.amount, 6))).toString() : null,
       evidenceUrl: m.evidenceUrl || (m.evidenceCID ? `https://gateway.pinata.cloud/ipfs/${m.evidenceCID}` : null),
+      evidenceUrl2: m.evidenceUrl2 || null,
       explorerUrl: m.txHashRelease ? `https://amoy.polygonscan.com/tx/${m.txHashRelease}` 
                  : (m.txHashSubmit ? `https://amoy.polygonscan.com/tx/${m.txHashSubmit}` : null),
       isReleased: m.status === "RELEASED",
