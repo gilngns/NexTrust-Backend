@@ -391,7 +391,8 @@ async function planMilestones(payload) {
         "Content-Type": "application/json",
         "X-Internal-Token": aiToken
       },
-      body: JSON.stringify(aiPayload)
+      body: JSON.stringify(aiPayload),
+      signal: AbortSignal.timeout(50000) // Timeout 50s sebelum Nginx (60s) memutus koneksi
     });
 
     if (!res.ok) {
