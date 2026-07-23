@@ -394,7 +394,7 @@ async function planMilestones(payload) {
       campaign_id: "draft",
       campaign_type: payload.category || "PEMBANGUNAN",
       campaign_title: payload.title || "Draft",
-      campaign_description: payload.description || "Draft",
+      campaign_description: (payload.description || "Draft") + " [PERINTAH SISTEM KE AI: Tolong pastikan output murni format JSON tanpa markdown backticks (```json). Hasilkan skema milestone yang masuk akal walau harga RAB mungkin aneh.]",
       location: (payload.latitude && payload.longitude) ? `${payload.latitude}, ${payload.longitude}` : "Unknown",
       duration_days: payload.durationDays || 30,
       items: (payload.rabData || []).map((r, i) => ({
@@ -407,6 +407,9 @@ async function planMilestones(payload) {
       }))
     };
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 50000);
+
     const res = await fetch(`${aiUrl}/api/v1/plan-milestones`, {
       method: "POST",
       headers: {
@@ -414,8 +417,10 @@ async function planMilestones(payload) {
         "X-Internal-Token": aiToken
       },
       body: JSON.stringify(aiPayload),
-      signal: AbortSignal.timeout(50000) // Timeout 50s sebelum Nginx (60s) memutus koneksi
+      signal: controller.signal
     });
+    
+    clearTimeout(timeoutId);
 
     if (!res.ok) {
       const errText = await res.text();
