@@ -69,30 +69,43 @@ const create = async (payload) => {
   }
   const beneficiary = foundation.custodialAddress;
 
-  const tAmt = targetAmount || 0;
-  const aAmt = advanceAmount || 0;
-
-  const targetToken = ethers.parseUnits(tAmt.toString(), 6);
-  const advanceToken = ethers.parseUnits(aAmt.toString(), 6);
-  const milestoneTotal = targetToken - advanceToken;
+  // Tambahkan 3% fee platform ke target dan uang muka (DP)
+  const requestedTarget = BigInt(targetAmount || 0);
+  const platformFee = (requestedTarget * 3n) / 100n;
+  const grossTarget = requestedTarget + platformFee;
   
+  const requestedAdvance = BigInt(advanceAmount || 0);
+  const grossAdvance = requestedAdvance + platformFee;
+
+  const targetToken = ethers.parseUnits(grossTarget.toString(), 6);
+  const advanceToken = ethers.parseUnits(grossAdvance.toString(), 6);
+  const milestoneTotal = targetToken - advanceToken; // Ini akan persis sama dengan targetToken asli - advanceToken asli
+
   let milestoneAmounts = [];
   let dbMilestones = [];
 
   if (payload.milestones && payload.milestones.length > 0) {
     // Custom structure
+    let currentSum = 0n;
     for (let i = 0; i < payload.milestones.length; i++) {
       const m = payload.milestones[i];
       let amtToken;
       if (m.amount) {
         amtToken = ethers.parseUnits(m.amount.toString(), 6);
       } else if (m.percentage) {
-        // percentage is like 40.5
-        const amtStr = ((tAmt * m.percentage) / 100).toFixed(6);
-        amtToken = ethers.parseUnits(amtStr.toString(), 6);
+        if (i === payload.milestones.length - 1) {
+          // Last milestone takes all the remaining milestone funds to avoid rounding mismatch
+          amtToken = milestoneTotal - currentSum;
+        } else {
+          // m.percentage is like 40.5
+          // Calculate percentage directly from milestoneTotal in BigInt to avoid float issues
+          const pctInt = BigInt(Math.round(m.percentage * 100)); // 40.5 -> 4050
+          amtToken = (milestoneTotal * pctInt) / 10000n;
+        }
       } else {
         throw AppError.badRequest("Milestone must have amount or percentage");
       }
+      currentSum += amtToken;
       milestoneAmounts.push(amtToken);
       dbMilestones.push({
         index: m.order || (i + 1),

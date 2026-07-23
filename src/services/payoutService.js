@@ -78,7 +78,17 @@ async function autoDisburse({ campaignId, amountUnits, label }) {
 
   const foundation = campaign.foundation;
   const grossAmount = BigInt(amountUnits || 0);
-  const platformFee = (grossAmount * 3n) / 100n;
+  
+  let platformFee = 0n;
+  // Saat createCampaign, target ditambah 3% untuk fee platform, dan fee tersebut dimasukkan seluruhnya ke advanceAmount (DP).
+  // Maka, kita hanya memotong platform fee ketika pencairan DP. Milestone tidak dipotong fee.
+  if (label.toLowerCase().includes("uang muka") || label.toLowerCase().includes("dp") || label.toLowerCase().includes("advance")) {
+    const targetToken = BigInt(campaign.targetAmount);
+    // targetToken = targetAsli + (targetAsli * 3/100) = targetAsli * 103/100
+    // Jadi platformFee = targetAsli * 3/100 = targetToken * 3 / 103
+    platformFee = (targetToken * 3n) / 103n;
+  }
+  
   const netAmount = grossAmount - platformFee;
 
   if (!foundation.bankAccountNo || !foundation.bankName) {
