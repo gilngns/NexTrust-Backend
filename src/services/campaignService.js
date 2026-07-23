@@ -13,7 +13,7 @@ async function _serialize(campaign) {
       out[k] = Math.round(Number(ethers.formatUnits(out[k], 6))).toString();
     }
   }
-
+//explorerUrl
   if (out.txHashCreate) {
     out.explorerUrl = `https://amoy.polygonscan.com/tx/${out.txHashCreate}`;
   }
