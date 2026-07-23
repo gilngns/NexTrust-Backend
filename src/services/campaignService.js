@@ -400,25 +400,43 @@ async function planMilestones(payload) {
     }
 
     const data = await res.json();
-    const targetAmt = payload.targetAmount || aiPayload.items.reduce((s, i) => s + i.subtotal, 0);
-    const dpAmount = Math.floor(targetAmt * 0.15);
-    const msAmount = targetAmt - dpAmount;
+    
+    let dpAmount = 0;
+    let msAmount = 0;
+    let mappedMilestones = [];
+    
+    if (data.milestones && data.milestones.length > 0) {
+      // AI assumes milestone[0] is the Advance Amount (DP)
+      const first = data.milestones[0];
+      dpAmount = first.amount || Math.floor((payload.targetAmount || data.total_amount) * (first.percentage / 100));
+      msAmount = data.total_amount - dpAmount;
+      
+      mappedMilestones = data.milestones.slice(1).map((m, i) => ({
+        order: i + 1, // Start order from 1 for on-chain milestones
+        title: m.title,
+        amount: m.amount || Math.floor((payload.targetAmount || data.total_amount) * (m.percentage / 100)),
+        percentage: m.percentage
+      }));
+    } else {
+      const targetAmt = payload.targetAmount || aiPayload.items.reduce((s, i) => s + i.subtotal, 0);
+      dpAmount = Math.floor(targetAmt * 0.15);
+      msAmount = targetAmt - dpAmount;
+    }
 
     let notes = data.summary || "AI telah merumuskan skema milestone terbaik.";
     if (data.milestones && data.milestones.length > 0) {
-      notes += `\n\nRincian AI:\n` + data.milestones.map(m => `- ${m.title} (${m.percentage}%): ${m.reason || m.definition_of_done}`).join("\n");
+      notes += `\n\nRincian AI:\n` + data.milestones.map((m, i) => {
+        const prefix = i === 0 ? "DP" : `Tahap ${i}`;
+        return `- [${prefix}] ${m.title} (${m.percentage}%): ${m.reason || m.definition_of_done}`;
+      }).join("\n\n");
     }
 
     return {
       plan: {
         advanceAmount: dpAmount,
         milestoneAmount: msAmount,
-        totalMilestones: data.milestones ? data.milestones.length : 3,
-        milestones: data.milestones ? data.milestones.map(m => ({
-          order: m.order,
-          title: m.title,
-          percentage: m.percentage
-        })) : [],
+        totalMilestones: mappedMilestones.length,
+        milestones: mappedMilestones,
         aiScore: data.structure_check?.valid ? 90 : 70,
         notes: notes
       }
@@ -439,7 +457,7 @@ async function planMilestones(payload) {
           { order: 3, title: "Tahap 3: Penyelesaian", percentage: 40 }
         ],
         aiScore: 85,
-        notes: "[MOCK] Sistem telah merumuskan skema pencairan dana (milestones) berdasarkan best-practice untuk meminimalkan risiko."
+        notes: `[MOCK] Sistem fallback karena gagal kontak AI: ${error.message}`
       }
     };
   }
