@@ -113,7 +113,7 @@ describe("campaignService", () => {
     it("should fetch from AI service and return plan", async () => {
       global.fetch.mockResolvedValue({
         ok: true,
-        json: async () => ({ score: 90, notes: "Good" })
+        json: async () => ({ overall_score: 90, summary: "Good" })
       });
 
       const res = await campaignService.generateDraftPlan({ rabData: [{item: "A", qty: 1, harga: 10}], targetAmount: 100 });
