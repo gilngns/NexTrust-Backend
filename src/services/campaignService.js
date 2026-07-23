@@ -368,13 +368,30 @@ async function planMilestones(payload) {
   const aiToken = process.env.AI_INTERNAL_TOKEN || "";
 
   try {
+    const aiPayload = {
+      campaign_id: "draft",
+      campaign_type: payload.category || "PEMBANGUNAN",
+      campaign_title: payload.title || "Draft",
+      campaign_description: payload.description || "Draft",
+      location: (payload.latitude && payload.longitude) ? `${payload.latitude}, ${payload.longitude}` : "Unknown",
+      duration_days: payload.durationDays || 30,
+      items: (payload.rabData || []).map((r, i) => ({
+        id: `item-${i}`,
+        name: r.item,
+        quantity: Number(r.qty) || 1,
+        unit: r.unit || "unit",
+        unit_price: Number(r.harga) || 0,
+        subtotal: (Number(r.qty) || 1) * (Number(r.harga) || 0)
+      }))
+    };
+
     const res = await fetch(`${aiUrl}/api/v1/plan-milestones`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "X-Internal-Token": aiToken
       },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(aiPayload)
     });
 
     if (!res.ok) {
@@ -382,7 +399,30 @@ async function planMilestones(payload) {
       throw AppError.badRequest(`Failed to plan milestones: ${errText}`);
     }
 
-    return await res.json();
+    const data = await res.json();
+    const targetAmt = payload.targetAmount || aiPayload.items.reduce((s, i) => s + i.subtotal, 0);
+    const dpAmount = Math.floor(targetAmt * 0.15);
+    const msAmount = targetAmt - dpAmount;
+
+    let notes = data.summary || "AI telah merumuskan skema milestone terbaik.";
+    if (data.milestones && data.milestones.length > 0) {
+      notes += `\n\nRincian AI:\n` + data.milestones.map(m => `- ${m.title} (${m.percentage}%): ${m.reason || m.definition_of_done}`).join("\n");
+    }
+
+    return {
+      plan: {
+        advanceAmount: dpAmount,
+        milestoneAmount: msAmount,
+        totalMilestones: data.milestones ? data.milestones.length : 3,
+        milestones: data.milestones ? data.milestones.map(m => ({
+          order: m.order,
+          title: m.title,
+          percentage: m.percentage
+        })) : [],
+        aiScore: data.structure_check?.valid ? 90 : 70,
+        notes: notes
+      }
+    };
   } catch (error) {
     console.warn("AI Microservice unreachable, falling back to mock planMilestones", error.message);
     const targetAmt = payload.targetAmount || 0;
