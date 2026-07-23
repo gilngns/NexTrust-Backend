@@ -13,7 +13,7 @@ async function _serialize(campaign) {
       out[k] = Math.round(Number(ethers.formatUnits(out[k], 6))).toString();
     }
   }
-  
+
   if (out.txHashCreate) {
     out.explorerUrl = `https://amoy.polygonscan.com/tx/${out.txHashCreate}`;
   }
@@ -31,8 +31,8 @@ async function _serialize(campaign) {
       amount: m.amount !== undefined && m.amount !== null ? Math.round(Number(ethers.formatUnits(m.amount, 6))).toString() : null,
       evidenceUrl: m.evidenceUrl || (m.evidenceCID ? `https://gateway.pinata.cloud/ipfs/${m.evidenceCID}` : null),
       evidenceUrl2: m.evidenceUrl2 || null,
-      explorerUrl: m.txHashRelease ? `https://amoy.polygonscan.com/tx/${m.txHashRelease}` 
-                 : (m.txHashSubmit ? `https://amoy.polygonscan.com/tx/${m.txHashSubmit}` : null),
+      explorerUrl: m.txHashRelease ? `https://amoy.polygonscan.com/tx/${m.txHashRelease}`
+        : (m.txHashSubmit ? `https://amoy.polygonscan.com/tx/${m.txHashSubmit}` : null),
       isReleased: m.status === "RELEASED",
     }));
   }
@@ -73,7 +73,7 @@ const create = async (payload) => {
   const requestedTarget = BigInt(Math.floor(targetAmount || 0));
   const platformFee = (requestedTarget * 3n) / 100n;
   const grossTarget = requestedTarget + platformFee;
-  
+
   const requestedAdvance = BigInt(Math.floor(advanceAmount || 0));
   const grossAdvance = requestedAdvance + platformFee;
 
@@ -180,7 +180,7 @@ const create = async (payload) => {
 
 async function list(status, pageQuery, limitQuery) {
   const where = status ? { status } : undefined;
-  
+
   // Default to returning all if pagination isn't provided, to preserve backward compatibility for old endpoints
   let skip = undefined;
   let take = undefined;
@@ -191,7 +191,7 @@ async function list(status, pageQuery, limitQuery) {
     const limit = parseInt(limitQuery) || 10;
     skip = (page - 1) * limit;
     take = limit;
-    
+
     const total = await prisma.campaign.count({ where });
     pagination = {
       total,
@@ -206,7 +206,7 @@ async function list(status, pageQuery, limitQuery) {
     orderBy: { createdAt: "desc" },
     skip,
     take,
-    include: { 
+    include: {
       foundation: { select: { name: true } },
       milestones: true,
       donations: {
@@ -214,26 +214,26 @@ async function list(status, pageQuery, limitQuery) {
       }
     },
   });
-  
+
   const serializedCampaigns = await Promise.all(campaigns.map(async (c) => {
     const serialized = await _serialize(c);
-    
+
     const successfulDonations = c.donations
       ? c.donations.filter(d => ["PAID", "DEPOSITED"].includes(d.status))
       : [];
-      
+
     const collected = successfulDonations.reduce((sum, d) => sum + BigInt(d.amount), 0n);
-    
+
     serialized.collectedAmount = Math.round(Number(ethers.formatUnits(collected, 6))).toString();
     const uniqueDonors = new Set(successfulDonations.map(d => d.donorId || d.donorName || d.donorAddress || "anon"));
     serialized.donorCount = uniqueDonors.size;
-    
+
     // Add boolean flags for frontend convenience
     const targetAmtNum = Number(serialized.targetAmount) || 0;
     const collectedAmtNum = Number(serialized.collectedAmount) || 0;
     serialized.isTargetReached = collectedAmtNum >= targetAmtNum;
     serialized.canDonate = serialized.status === "ACTIVE" && !serialized.isTargetReached;
-    
+
     // Remove donations from list response to keep it lightweight
     delete serialized.donations;
 
@@ -243,7 +243,7 @@ async function list(status, pageQuery, limitQuery) {
   if (pagination) {
     return { campaigns: serializedCampaigns, pagination };
   }
-  
+
   return { campaigns: serializedCampaigns };
 }
 
@@ -265,7 +265,7 @@ async function getById(id) {
   try {
     onChainState = await contractService.getCampaignState(campaign.onChainId);
     lockedFunds = await contractService.getLockedFunds(campaign.onChainId);
-  } catch (_) {}
+  } catch (_) { }
 
   const collectedAmount = campaign.donations
     .filter(d => ["PAID", "DEPOSITED"].includes(d.status))
@@ -286,45 +286,59 @@ async function getById(id) {
   };
 }
 
-async function generateDraftPlan({ rabData, targetAmount }) {
+async function generateDraftPlan({ targetAmount, rabData, ...payload }) {
   const aiUrl = process.env.AI_SERVICE_URL || "http://localhost:8000";
   const aiToken = process.env.AI_INTERNAL_TOKEN || "";
 
-  const items = rabData.map(r => ({
-    name: r.item,
-    qty: r.qty,
-    unit: r.unit,
-    unitPrice: r.harga
+  const items = rabData.map((r, i) => ({
+    id: `item-${i}`,
+    name: r.item || "Unknown",
+    quantity: Number(r.qty) || 1,
+    unit: r.unit || "unit",
+    unit_price: Number(r.harga) || 0,
+    subtotal: (Number(r.qty) || 1) * (Number(r.harga) || 0)
   }));
-  const total = items.reduce((sum, i) => sum + (i.qty * i.unitPrice), 0);
+  
+  const aiPayload = {
+    campaign_id: "draft",
+    campaign_type: payload.category || "PEMBANGUNAN",
+    campaign_title: payload.title || "Draft Campaign",
+    campaign_description: payload.description || "Draft",
+    location: (payload.latitude && payload.longitude) ? `${payload.latitude}, ${payload.longitude}` : "Unknown",
+    items: items
+  };
 
-  let aiNotes = "Sistem telah merumuskan skema pencairan dana (milestones) berdasarkan best-practice untuk meminimalkan risiko. Porsi per-milestone memakai retensi progresif (porsi akhir terbesar).";
-  let aiScore = 0;
+  let aiNotes = "[MOCK] Sistem fallback karena gagal kontak AI: Evaluasi AI gagal sementara. Silakan coba lagi.";
+  let aiScore = 85;
 
   try {
-    const res = await fetch(`${aiUrl}/evaluate-rab`, {
+    const res = await fetch(`${aiUrl}/api/v1/validate-rab`, {
       method: "POST",
-      headers: { 
+      headers: {
         "Content-Type": "application/json",
         "X-Internal-Token": aiToken
       },
-      body: JSON.stringify({ items, total, targetAmount }),
+      body: JSON.stringify(aiPayload),
+      signal: AbortSignal.timeout(50000)
     });
 
     if (res.ok) {
       const aiResult = await res.json();
-      aiScore = aiResult.score || 0;
-      aiNotes = `AI Review (Skor: ${aiScore}): ${aiResult.notes}`;
+      aiScore = aiResult.overall_score || 0;
+      aiNotes = `AI Review (Skor: ${aiScore}): ${aiResult.summary || "Selesai dianalisis."}`;
+    } else {
+      const errText = await res.text();
+      console.warn("AI /api/v1/validate-rab failed with status:", res.status, errText);
     }
   } catch (error) {
-    console.warn("AI Microservice unreachable, falling back to mock plan", error.message);
+    console.warn("AI Microservice unreachable for validate-rab, falling back to mock plan", error.message);
   }
 
-  const advanceAmount = Math.floor(targetAmount * 0.15); 
+  const advanceAmount = Math.floor(targetAmount * 0.15);
   return {
     advanceAmount,
-    milestoneAmount: targetAmount - advanceAmount, 
-    totalMilestones: 3, 
+    milestoneAmount: targetAmount - advanceAmount,
+    totalMilestones: 3,
     notes: aiNotes,
     aiScore,
   };
@@ -401,17 +415,17 @@ async function planMilestones(payload) {
     }
 
     const data = await res.json();
-    
+
     let dpAmount = 0;
     let msAmount = 0;
     let mappedMilestones = [];
-    
+
     if (data.milestones && data.milestones.length > 0) {
       // AI assumes milestone[0] is the Advance Amount (DP)
       const first = data.milestones[0];
       dpAmount = first.amount || Math.floor((payload.targetAmount || data.total_amount) * (first.percentage / 100));
       msAmount = data.total_amount - dpAmount;
-      
+
       mappedMilestones = data.milestones.slice(1).map((m, i) => ({
         order: i + 1, // Start order from 1 for on-chain milestones
         title: m.title,
@@ -467,7 +481,7 @@ async function planMilestones(payload) {
 async function validateMilestoneStructure(payload) {
   const aiUrl = process.env.AI_SERVICE_URL || "http://localhost:8000";
   const aiToken = process.env.AI_INTERNAL_TOKEN || "";
-  
+
   try {
     const res = await fetch(`${aiUrl}/api/v1/validate-milestone-structure`, {
       method: "POST",
@@ -493,14 +507,14 @@ async function validateMilestoneStructure(payload) {
   }
 }
 
-export default { 
-  create, 
-  list, 
-  getById, 
-  generateDraftPlan, 
-  updateImage, 
-  approve, 
+export default {
+  create,
+  list,
+  getById,
+  generateDraftPlan,
+  updateImage,
+  approve,
   reject,
   planMilestones,
-  validateMilestoneStructure 
+  validateMilestoneStructure
 };
