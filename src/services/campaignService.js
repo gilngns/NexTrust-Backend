@@ -311,6 +311,9 @@ async function generateDraftPlan({ targetAmount, rabData, ...payload }) {
   let aiNotes = "[MOCK] Sistem fallback karena gagal kontak AI: Evaluasi AI gagal sementara. Silakan coba lagi.";
   let aiScore = 85;
 
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 50000);
+
   try {
     const res = await fetch(`${aiUrl}/api/v1/validate-rab`, {
       method: "POST",
@@ -319,8 +322,10 @@ async function generateDraftPlan({ targetAmount, rabData, ...payload }) {
         "X-Internal-Token": aiToken
       },
       body: JSON.stringify(aiPayload),
-      signal: AbortSignal.timeout(50000)
+      signal: controller.signal
     });
+    
+    clearTimeout(timeoutId);
 
     if (res.ok) {
       const aiResult = await res.json();
