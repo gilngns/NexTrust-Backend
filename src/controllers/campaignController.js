@@ -304,6 +304,7 @@ export async function simulateMilestoneFlow(req, res, next) {
     const aiUrl = process.env.AI_SERVICE_URL || "http://localhost:8000";
     const aiToken = process.env.AI_INTERNAL_TOKEN || "";
     try {
+      let detailLog = [];
       const checkReceipt = async (base64Img, idx) => {
         const b64Data = base64Img.replace(/^data:image\/\w+;base64,/, "");
         try {
@@ -323,6 +324,11 @@ export async function simulateMilestoneFlow(req, res, next) {
           // Nota tulis tangan kadang hanya terdeteksi sedikit teks oleh OCR
           const textLength = data.raw_text ? data.raw_text.trim().length : 0;
           console.log(`[AI Validation] Image ${idx} extracted text length: ${textLength}`);
+          
+          let rawTextPreview = data.raw_text ? data.raw_text.trim().replace(/\n/g, " ").substring(0, 30) : "";
+          if (rawTextPreview.length === 30) rawTextPreview += "...";
+          detailLog.push(`Foto ${idx}: terdeteksi ${textLength} huruf ${rawTextPreview ? `(${rawTextPreview})` : ''}`);
+          
           return textLength >= 3; // Sangat longgar, asalkan ada teks yang terbaca
         } catch (e) {
           console.warn(`[AI Validation] Fetch failed for image ${idx}:`, e.message);
@@ -334,7 +340,7 @@ export async function simulateMilestoneFlow(req, res, next) {
       const hasReceipt2 = await checkReceipt(evidenceImage2, 2);
 
       if (!hasReceipt1 && !hasReceipt2) {
-        throw AppError.badRequest("Validasi AI Gagal: Tidak ditemukan nota/struk belanja pada foto yang diunggah. Pastikan salah satu foto adalah bukti pembelian (nota), bukan hanya foto kegiatan.");
+        throw AppError.badRequest(`Validasi AI Gagal: Tidak ditemukan nota/struk belanja pada foto yang diunggah.\n\nDetail:\n- ${detailLog.join('\n- ')}`);
       }
     } catch (err) {
       if (err instanceof AppError) throw err;
