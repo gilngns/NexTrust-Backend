@@ -70,11 +70,11 @@ const create = async (payload) => {
   const beneficiary = foundation.custodialAddress;
 
   // Tambahkan 3% fee platform ke target dan uang muka (DP)
-  const requestedTarget = BigInt(targetAmount || 0);
+  const requestedTarget = BigInt(Math.floor(targetAmount || 0));
   const platformFee = (requestedTarget * 3n) / 100n;
   const grossTarget = requestedTarget + platformFee;
   
-  const requestedAdvance = BigInt(advanceAmount || 0);
+  const requestedAdvance = BigInt(Math.floor(advanceAmount || 0));
   const grossAdvance = requestedAdvance + platformFee;
 
   const targetToken = ethers.parseUnits(grossTarget.toString(), 6);
@@ -91,7 +91,7 @@ const create = async (payload) => {
       const m = payload.milestones[i];
       let amtToken;
       if (m.amount) {
-        amtToken = ethers.parseUnits(m.amount.toString(), 6);
+        amtToken = ethers.parseUnits(Math.floor(m.amount).toString(), 6);
       } else if (m.percentage) {
         if (i === payload.milestones.length - 1) {
           // Last milestone takes all the remaining milestone funds to avoid rounding mismatch
