@@ -56,8 +56,8 @@ describe("campaignService", () => {
       const mockCampaign = {
         id: "camp-123",
         ...validPayload,
-        targetAmount: BigInt("1000000000000"),
-        advanceAmount: BigInt("100000000000"),
+        targetAmount: BigInt("1030000000000"),
+        advanceAmount: BigInt("130000000000"),
         milestoneAmount: BigInt("900000000000"),
         beneficiary: "0x123",
         status: "ACTIVE",
@@ -74,15 +74,15 @@ describe("campaignService", () => {
       });
       expect(contractService.createCampaign).toHaveBeenCalledWith({
         campaignIdStr: validPayload.onChainId,
-        targetAmount: BigInt("1000000000000"),
-        advanceAmount: BigInt("100000000000"),
+        targetAmount: BigInt("1030000000000"),
+        advanceAmount: BigInt("130000000000"),
         milestoneAmounts: [BigInt("360000000000"), BigInt("540000000000")],
         rabCID: validPayload.rabCID,
         beneficiary: "0x123",
       });
       expect(prisma.campaign.create).toHaveBeenCalled();
 
-      expect(result.targetAmount).toBe("1000000");
+      expect(result.targetAmount).toBe("1030000");
     });
 
     it("should throw notFound if foundation does not exist", async () => {
