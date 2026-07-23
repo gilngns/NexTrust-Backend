@@ -333,10 +333,13 @@ async function generateDraftPlan({ targetAmount, rabData, ...payload }) {
       aiNotes = `AI Review (Skor: ${aiScore}): ${aiResult.summary || "Selesai dianalisis."}`;
     } else {
       const errText = await res.text();
-      console.warn("AI /api/v1/validate-rab failed with status:", res.status, errText);
+      const errMsg = `Status ${res.status}: ${errText.substring(0, 50)}`;
+      console.warn("AI /api/v1/validate-rab failed:", errMsg);
+      aiNotes = `[MOCK] Gagal karena API Error: ${errMsg}`;
     }
   } catch (error) {
     console.warn("AI Microservice unreachable for validate-rab, falling back to mock plan", error.message);
+    aiNotes = `[MOCK] Gagal koneksi (Fetch Error): ${error.message}`;
   }
 
   const advanceAmount = Math.floor(targetAmount * 0.15);
