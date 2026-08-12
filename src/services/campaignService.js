@@ -394,7 +394,7 @@ async function planMilestones(payload) {
       campaign_id: "draft",
       campaign_type: payload.category || "PEMBANGUNAN",
       campaign_title: payload.title || "Draft",
-      campaign_description: (payload.description || "Draft") + " [PERINTAH SISTEM KE AI: Tolong pastikan output murni format JSON tanpa markdown backticks (```json). Hasilkan skema milestone yang masuk akal walau harga RAB mungkin aneh.]",
+      campaign_description: (payload.description || "Draft") + " [PERINTAH SISTEM KE AI: Tolong pastikan output murni format JSON tanpa markdown backticks (```json). Hasilkan skema milestone yang masuk akal walau harga RAB mungkin aneh. ATURAN WAJIB: milestone pertama (Uang Muka/DP) tidak boleh melebihi 15% dari total anggaran, dan harus ada minimal 2 tahap pencairan setelah DP.]",
       location: (payload.latitude && payload.longitude) ? `${payload.latitude}, ${payload.longitude}` : "Unknown",
       duration_days: payload.durationDays || 30,
       items: (payload.rabData || []).map((r, i) => ({
@@ -434,17 +434,47 @@ async function planMilestones(payload) {
     let mappedMilestones = [];
 
     if (data.milestones && data.milestones.length > 0) {
-      
+      const targetAmt = payload.targetAmount || data.total_amount;
+      const maxDpAmount = Math.floor(targetAmt * 0.15);
+
       const first = data.milestones[0];
-      dpAmount = first.amount || Math.floor((payload.targetAmount || data.total_amount) * (first.percentage / 100));
+      dpAmount = first.amount || Math.floor(targetAmt * (first.percentage / 100));
+
+      // AI kadang mengabaikan aturan platform (DP maks 15%). Kita batasi paksa di sini
+      // agar plan yang dikembalikan selalu valid saat dipakai untuk create campaign,
+      // dan kelebihannya dikembalikan ke tahap pencairan berikutnya.
+      let dpExcess = 0;
+      if (dpAmount > maxDpAmount) {
+        dpExcess = dpAmount - maxDpAmount;
+        dpAmount = maxDpAmount;
+      }
       msAmount = data.total_amount - dpAmount;
 
       mappedMilestones = data.milestones.slice(1).map((m, i) => ({
-        order: i + 1, 
+        order: i + 1,
         title: m.title,
-        amount: m.amount || Math.floor((payload.targetAmount || data.total_amount) * (m.percentage / 100)),
+        amount: m.amount || Math.floor(targetAmt * (m.percentage / 100)),
         percentage: m.percentage
       }));
+
+      if (dpExcess > 0) {
+        if (mappedMilestones.length > 0) {
+          mappedMilestones[mappedMilestones.length - 1].amount += dpExcess;
+        } else {
+          mappedMilestones.push({ order: 1, title: "Tahap Penyelesaian", amount: dpExcess, percentage: null });
+        }
+      }
+
+      // Platform mewajibkan minimal 2 tahap pencairan di luar DP.
+      if (mappedMilestones.length < 2) {
+        const only = mappedMilestones[0];
+        const totalRest = only ? only.amount : msAmount;
+        const half = Math.floor(totalRest / 2);
+        mappedMilestones = [
+          { order: 1, title: only?.title || "Tahap 1: Pengerjaan", amount: half, percentage: null },
+          { order: 2, title: "Tahap 2: Penyelesaian", amount: totalRest - half, percentage: null },
+        ];
+      }
     } else {
       const targetAmt = payload.targetAmount || aiPayload.items.reduce((s, i) => s + i.subtotal, 0);
       dpAmount = Math.floor(targetAmt * 0.15);
