@@ -6,6 +6,7 @@ import yaml from "yaml";
 import express from "express";
 import helmet from "helmet";
 import cors from "cors";
+import compression from "compression";
 import swaggerUi from "swagger-ui-express";
 
 import apiRoutes from "./routes/index.js";
@@ -22,6 +23,9 @@ BigInt.prototype.toJSON = function () {
 };
 
 const app = express();
+
+app.use(compression());
+app.set("etag", "strong");
 
 app.set("trust proxy", 1);
 app.use(

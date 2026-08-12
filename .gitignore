@@ -1,4 +1,24 @@
+# Dependencies
 node_modules
+
+# Environment
 .env
+.env.local
+.env.*.local
+
+# Logs
 *.log
+
+# Uploads (runtime generated)
+uploads/
+
+# Documentation (auto-generated)
 PDD.md
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/

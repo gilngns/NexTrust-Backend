@@ -60,6 +60,13 @@ model Campaign {
   donations       Donation[]
   milestones      Milestone[]
   payouts         Payout[]
+  totalRaised     Decimal  @default(0) @db.Decimal(30, 0)
+  donorCount      Int      @default(0)
+  escrowBalance   Decimal  @default(0) @db.Decimal(30, 0)
+  snapshotAt      DateTime @default(now())
+
+  @@index([status, createdAt(sort: Desc)])
+  @@index([category, status])
 }
 
 model Donation {

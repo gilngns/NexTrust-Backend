@@ -5,6 +5,9 @@ import milestoneService from "../services/milestoneService.js";
 import config from "../config/index.js";
 import prisma from "../config/prisma.js";
 import AppError from "../utils/AppError.js";
+import { getCampaignList } from "../services/campaignListService.js";
+
+
 
 export async function listCampaigns(req, res, next) {
   try {
@@ -15,6 +18,16 @@ export async function listCampaigns(req, res, next) {
     });
   } catch (error) {
     next(error);
+  }
+}
+
+export async function list(req, res, next) {
+  try {
+    const result = await getCampaignList(req.query);
+    res.set("Cache-Control", "public, max-age=30, stale-while-revalidate=60");
+    res.json(result);
+  } catch (err) {
+    next(err);
   }
 }
 
