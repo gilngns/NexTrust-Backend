@@ -16,7 +16,7 @@ import { authenticate, authorize, optionalAuthenticate } from "../middleware/aut
 
 const router = express.Router();
 
-router.get("/", asyncHandler(campaignController.listCampaigns));
+router.get("/", asyncHandler(campaignController.list));
 
 router.post(
   "/plan-draft",
