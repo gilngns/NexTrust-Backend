@@ -118,7 +118,7 @@ describe("donationService", () => {
       expect(result.status).toBe("PAID");
       expect(result.message).toBe("processing_in_background");
       
-      // Beri sedikit jeda agar proses background (settleDonation) selesai mengeksekusi semua mock
+      
       await new Promise((resolve) => setTimeout(resolve, 50));
 
       expect(tokenService.mint).toHaveBeenCalled();

@@ -12,6 +12,7 @@ module.exports = {
       max_memory_restart: "400M",
       env: {
         NODE_ENV: "production",
+        UV_THREADPOOL_SIZE: "8",
       },
     },
   ],

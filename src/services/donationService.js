@@ -15,7 +15,7 @@ async function initiate({ campaignId, donorId, donorName, amountRupiah }) {
   if (!campaign) throw AppError.notFound();
 
   const onChainState = await contractService.getCampaignState(campaign.onChainId);
-  if (onChainState !== 0n) { // 0 = ACTIVE
+  if (onChainState !== 0n) { 
     throw AppError.badRequest("Kampanye sudah mencapai target atau tidak aktif.");
   }
 
@@ -70,13 +70,13 @@ async function handleWebhook(notification) {
     return { status };
   }
 
-  // Update status to PAID immediately to prevent concurrent retries from processing again
+  
   await prisma.donation.update({
     where: { id: donation.id },
     data: { status: "PAID", paidAt: new Date() },
   });
 
-  // Run blockchain transactions in the background so we can respond to Midtrans immediately
+  
   settleDonation(donation.id).catch((err) => {
     console.error(`[Background] settleDonation failed for ${donation.id}:`, err);
   });
@@ -139,12 +139,6 @@ async function listByCampaign(campaignId) {
   }));
 }
 
-/**
- * Dipakai frontend untuk polling status pembayaran (mis. auto-lanjut ke
- * layar sukses begitu status berubah jadi DEPOSITED), tanpa perlu webhook
- * langsung ke browser. Sengaja hanya mengembalikan field minimal — tidak
- * ada data sensitif donatur lain yang bocor lewat endpoint publik ini.
- */
 async function getStatusByOrderId(orderId) {
   const donation = await prisma.donation.findUnique({ where: { orderId } });
   if (!donation) throw AppError.notFound("Donasi tidak ditemukan.");

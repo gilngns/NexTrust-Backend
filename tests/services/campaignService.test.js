@@ -111,7 +111,7 @@ describe("campaignService", () => {
     });
 
     it("should fetch from AI service and return plan", async () => {
-      //merubah overall_score
+      
       global.fetch.mockResolvedValue({
         ok: true,
         json: async () => ({ overall_score: 90, summary: "Good" })

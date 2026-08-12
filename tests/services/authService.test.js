@@ -1,6 +1,6 @@
 import { jest } from "@jest/globals";
 
-jest.unstable_mockModule("bcryptjs", () => ({
+jest.unstable_mockModule("bcrypt", () => ({
   default: {
     hash: jest.fn(),
     compare: jest.fn(),
@@ -36,7 +36,7 @@ jest.unstable_mockModule("../../src/services/walletService.js", () => ({
   },
 }));
 
-const bcrypt = (await import("bcryptjs")).default;
+const bcrypt = (await import("bcrypt")).default;
 const jwt = (await import("jsonwebtoken")).default;
 const prisma = (await import("../../src/config/prisma.js")).default;
 const walletService = (await import("../../src/services/walletService.js")).default;

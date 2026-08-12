@@ -5,34 +5,38 @@
   "main": "src/server.js",
   "type": "module",
   "engines": {
-    "node": ">=20 <=22"
+    "node": ">=20 <23"
   },
   "scripts": {
     "start": "node src/server.js",
-    "dev": "node --watch src/server.js",
-    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand",
+    "dev": "cross-env UV_THREADPOOL_SIZE=8 DEBUG_TIMING=1 node --watch src/server.js",
+    "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --runInBand",
+    "test:watch": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --watch",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
-    "prisma:studio": "prisma studio"
+    "prisma:studio": "prisma studio",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@prisma/client": "^5.19.0",
-    "bcryptjs": "^2.4.3",
+    "bcrypt": "^6.0.0",
     "compression": "^1.8.1",
-    "cors": "^2.8.6",
+    "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "ethers": "^6.13.0",
     "express": "^4.19.2",
     "express-rate-limit": "^8.5.2",
     "helmet": "^8.2.0",
     "jsonwebtoken": "^9.0.2",
+    "lru-cache": "^11.0.0",
     "multer": "^2.2.0",
     "swagger-ui-express": "^5.0.1",
     "yaml": "^2.9.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "cross-env": "^7.0.3",
     "jest": "^30.4.2",
     "prisma": "^5.19.0"
   }

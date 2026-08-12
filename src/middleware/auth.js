@@ -22,7 +22,7 @@ export async function optionalAuthenticate(req, res, next) {
   try {
     req.user = await authService.verifyToken(token);
   } catch (_) {
-    // Ignore verification errors for optional auth
+    
   }
   return next();
 }

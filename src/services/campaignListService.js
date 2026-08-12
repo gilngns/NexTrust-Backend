@@ -54,7 +54,7 @@ export async function getCampaignList(params) {
     ]);
 
     const campaigns = items.map((c) => {
-      // Serialize BigInt fields
+      
       const targetAmountStr = Math.round(Number(ethers.formatUnits(c.targetAmount, 6))).toString();
       const advanceAmountStr = Math.round(Number(ethers.formatUnits(c.advanceAmount, 6))).toString();
       const milestoneAmountStr = Math.round(Number(ethers.formatUnits(c.milestoneAmount, 6))).toString();

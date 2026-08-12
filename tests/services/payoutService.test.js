@@ -3,10 +3,10 @@ import { jest } from "@jest/globals";
 jest.unstable_mockModule("ethers", () => ({
   ethers: {
     formatUnits: jest.fn().mockReturnValue("100"),
-    // payoutService kini meng-import tokenService (untuk burnFromFoundation),
-    // yang saat di-load memanggil new ethers.JsonRpcProvider/Wallet/Contract
-    // di top-level modul — jadi harus ikut di-mock di sini juga, walau
-    // tidak dipakai langsung oleh test-test payoutService di bawah.
+    
+    
+    
+    
     JsonRpcProvider: jest.fn().mockImplementation(() => ({})),
     Wallet: jest.fn().mockImplementation(() => ({ address: "0xBackendWallet" })),
     Contract: jest.fn().mockImplementation(() => ({

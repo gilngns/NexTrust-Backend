@@ -13,7 +13,7 @@ async function _serialize(campaign) {
       out[k] = Math.round(Number(ethers.formatUnits(out[k], 6))).toString();
     }
   }
-//explorerUrl
+
   if (out.txHashCreate) {
     out.explorerUrl = `https://amoy.polygonscan.com/tx/${out.txHashCreate}`;
   }
@@ -69,7 +69,7 @@ const create = async (payload) => {
   }
   const beneficiary = foundation.custodialAddress;
 
-  // Tambahkan 3% fee platform ke target dan uang muka (DP)
+  
   const requestedTarget = BigInt(Math.floor(targetAmount || 0));
   const platformFee = (requestedTarget * 3n) / 100n;
   const grossTarget = requestedTarget + platformFee;
@@ -79,13 +79,13 @@ const create = async (payload) => {
 
   const targetToken = ethers.parseUnits(grossTarget.toString(), 6);
   const advanceToken = ethers.parseUnits(grossAdvance.toString(), 6);
-  const milestoneTotal = targetToken - advanceToken; // Ini akan persis sama dengan targetToken asli - advanceToken asli
+  const milestoneTotal = targetToken - advanceToken; 
 
   let milestoneAmounts = [];
   let dbMilestones = [];
 
   if (payload.milestones && payload.milestones.length > 0) {
-    // Custom structure
+    
     let currentSum = 0n;
     for (let i = 0; i < payload.milestones.length; i++) {
       const m = payload.milestones[i];
@@ -94,12 +94,12 @@ const create = async (payload) => {
         amtToken = ethers.parseUnits(Math.floor(m.amount).toString(), 6);
       } else if (m.percentage) {
         if (i === payload.milestones.length - 1) {
-          // Last milestone takes all the remaining milestone funds to avoid rounding mismatch
+          
           amtToken = milestoneTotal - currentSum;
         } else {
-          // m.percentage is like 40.5
-          // Calculate percentage directly from milestoneTotal in BigInt to avoid float issues
-          const pctInt = BigInt(Math.round(m.percentage * 100)); // 40.5 -> 4050
+          
+          
+          const pctInt = BigInt(Math.round(m.percentage * 100)); 
           amtToken = (milestoneTotal * pctInt) / 10000n;
         }
       } else {
@@ -114,7 +114,7 @@ const create = async (payload) => {
       });
     }
   } else {
-    // Fallback to auto-split
+    
     milestoneAmounts = progressiveRetentionSplit(
       milestoneTotal,
       totalMilestones || 2,
@@ -158,7 +158,7 @@ const create = async (payload) => {
       aiScore,
       aiNotes,
       rabData,
-      status: (aiScore !== undefined && aiScore < 85) ? "DRAFT" : "ACTIVE", // Updated to DRAFT if evaluating
+      status: (aiScore !== undefined && aiScore < 85) ? "DRAFT" : "ACTIVE", 
       txHashCreate: onchain.txHash,
       milestones: {
         create: dbMilestones,
@@ -181,7 +181,7 @@ const create = async (payload) => {
 async function list(status, pageQuery, limitQuery) {
   const where = status ? { status } : undefined;
 
-  // Default to returning all if pagination isn't provided, to preserve backward compatibility for old endpoints
+  
   let skip = undefined;
   let take = undefined;
   let pagination = null;
@@ -228,13 +228,13 @@ async function list(status, pageQuery, limitQuery) {
     const uniqueDonors = new Set(successfulDonations.map(d => d.donorId || d.donorName || d.donorAddress || "anon"));
     serialized.donorCount = uniqueDonors.size;
 
-    // Add boolean flags for frontend convenience
+    
     const targetAmtNum = Number(serialized.targetAmount) || 0;
     const collectedAmtNum = Number(serialized.collectedAmount) || 0;
     serialized.isTargetReached = collectedAmtNum >= targetAmtNum;
     serialized.canDonate = serialized.status === "ACTIVE" && !serialized.isTargetReached;
 
-    // Remove donations from list response to keep it lightweight
+    
     delete serialized.donations;
 
     return serialized;
@@ -368,7 +368,7 @@ async function approve(id) {
   });
 
   try {
-    // Skor >= 85 mengindikasikan approval (berdasarkan threshold oracle)
+    
     await oracleService.submitScore(campaign.onChainId, 100, Date.now());
   } catch (error) {
     console.error("[campaignService] Gagal submitScore ke blockchain saat approve:", error);
@@ -434,13 +434,13 @@ async function planMilestones(payload) {
     let mappedMilestones = [];
 
     if (data.milestones && data.milestones.length > 0) {
-      // AI assumes milestone[0] is the Advance Amount (DP)
+      
       const first = data.milestones[0];
       dpAmount = first.amount || Math.floor((payload.targetAmount || data.total_amount) * (first.percentage / 100));
       msAmount = data.total_amount - dpAmount;
 
       mappedMilestones = data.milestones.slice(1).map((m, i) => ({
-        order: i + 1, // Start order from 1 for on-chain milestones
+        order: i + 1, 
         title: m.title,
         amount: m.amount || Math.floor((payload.targetAmount || data.total_amount) * (m.percentage / 100)),
         percentage: m.percentage

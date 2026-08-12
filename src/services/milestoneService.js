@@ -109,10 +109,10 @@ async function releaseAdvance(campaignId) {
     data: { status: "ADVANCE_PAID" },
   });
 
-  // On-chain sudah sukses & tidak bisa dibatalkan — kegagalan di sisi
-  // pencairan rupiah TIDAK BOLEH membuat response ini gagal/throw. Cukup
-  // dilaporkan sebagai warning; payout tetap tercatat berstatus PENDING
-  // dan bisa di-retry manual lewat endpoint payout kalau perlu.
+  
+  
+  
+  
   let payout = null;
   let payoutWarning = null;
   try {
@@ -144,8 +144,8 @@ async function release({ campaignId, index }) {
     data: { status: "RELEASED", txHashRelease: onchain.txHash },
   });
 
-  // Sama seperti releaseAdvance: on-chain sudah final, jadi kegagalan
-  // pencairan rupiah tidak boleh menggagalkan response release ini.
+  
+  
   let payout = null;
   let payoutWarning = null;
   try {

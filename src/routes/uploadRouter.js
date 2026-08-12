@@ -26,7 +26,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage: storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB limit
+  limits: { fileSize: 10 * 1024 * 1024 }, 
 });
 
 router.post("/", upload.single("file"), (req, res) => {
@@ -34,7 +34,7 @@ router.post("/", upload.single("file"), (req, res) => {
     return res.status(400).json({ error: "No file uploaded" });
   }
 
-  // Determine base URL dynamically or use env
+  
   const protocol = req.headers["x-forwarded-proto"] || req.protocol;
   const host = req.headers.host;
   const baseUrl = `${protocol}://${host}`;

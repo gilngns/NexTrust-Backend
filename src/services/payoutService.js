@@ -24,24 +24,15 @@ async function _serialize(payout, foundation) {
   };
 }
 
-/**
- * MockPayout — meniru bentuk & lifecycle Midtrans Payouts (Iris) API asli:
- * reference_no, status queued/completed, beneficiary info. Disimulasikan
- * karena disbursement asli (Midtrans Payouts) butuh akun & verifikasi bisnis
- * terpisah dari akun Snap yang dipakai untuk QRIS masuk — sama seperti
- * MockXIDR mensimulasikan sisi on-chain untuk keperluan demo hackathon.
- * Gampang diganti ke integrasi Midtrans Payouts asli nanti: tinggal ganti
- * isi `_transferToBank()` dengan pemanggilan API sungguhan.
- */
 function _fakeReferenceNo() {
   return "MOCKPAY-" + crypto.randomBytes(6).toString("hex");
 }
 
 async function _transferToBank({ bankName, bankAccountNo, amountRupiah }) {
-  // Placeholder untuk integrasi Midtrans Payouts (Iris) di masa depan:
-  //   const res = await irisService.createPayout({ beneficiary_bank: bankName,
-  //     beneficiary_account: bankAccountNo, amount: amountRupiah, ... });
-  //   return { referenceNo: res.reference_no, raw: res };
+  
+  
+  
+  
   return {
     referenceNo: _fakeReferenceNo(),
     raw: { status: "completed", simulated: true },
@@ -54,21 +45,11 @@ async function _notifyFoundation(foundationId, { title, message, link }) {
       data: { userId: foundationId, title, message, link, type: "INFO" },
     });
   } catch (err) {
-    // Notifikasi gagal tidak boleh menggagalkan pencairan dana.
+    
     console.warn("[payoutService] gagal membuat notifikasi:", err.message);
   }
 }
 
-/**
- * Alur otomatis: dipanggil oleh milestoneService setelah escrow melepas dana
- * on-chain ke wallet custodial yayasan. Membakar MockXIDR yang baru diterima
- * (menutup loop token), lalu "mencairkan" nominal yang sama sebagai rupiah
- * ke rekening bank yayasan — yayasan tidak pernah berurusan dengan crypto.
- *
- * @param {string} campaignId
- * @param {bigint|string} amountUnits - nominal dalam satuan token XIDR (6 desimal)
- * @param {string} label - contoh: "Uang Muka" atau "Milestone #2"
- */
 async function autoDisburse({ campaignId, amountUnits, label }) {
   const campaign = await prisma.campaign.findUnique({
     where: { id: campaignId },
@@ -80,20 +61,20 @@ async function autoDisburse({ campaignId, amountUnits, label }) {
   const grossAmount = BigInt(amountUnits || 0);
   
   let platformFee = 0n;
-  // Saat createCampaign, target ditambah 3% untuk fee platform, dan fee tersebut dimasukkan seluruhnya ke advanceAmount (DP).
-  // Maka, kita hanya memotong platform fee ketika pencairan DP. Milestone tidak dipotong fee.
+  
+  
   if (label.toLowerCase().includes("uang muka") || label.toLowerCase().includes("dp") || label.toLowerCase().includes("advance")) {
     const targetToken = BigInt(campaign.targetAmount);
-    // targetToken = targetAsli + (targetAsli * 3/100) = targetAsli * 103/100
-    // Jadi platformFee = targetAsli * 3/100 = targetToken * 3 / 103
+    
+    
     platformFee = (targetToken * 3n) / 103n;
   }
   
   const netAmount = grossAmount - platformFee;
 
   if (!foundation.bankAccountNo || !foundation.bankName) {
-    // Dana tetap "aman" di wallet custodial yayasan (belum di-burn), hanya
-    // pencairan ke rekening yang tertunda — yayasan perlu lengkapi data bank.
+    
+    
     const payout = await prisma.payout.create({
       data: {
         campaignId,
@@ -123,11 +104,11 @@ async function autoDisburse({ campaignId, amountUnits, label }) {
     },
   });
 
-  // Kirim XIDR dari wallet custodial yayasan ke burn address — best effort.
-  // Ini transfer ERC20 standar (bukan fungsi khusus kontrak), jadi harusnya
-  // selalu berhasil selama wallet yayasan punya cukup saldo & gas (POL) di
-  // Amoy. Tetap dibungkus try/catch: kegagalan apa pun di sini (mis. wallet
-  // kehabisan POL buat gas) TIDAK BOLEH menahan pencairan rupiah yayasan.
+  
+  
+  
+  
+  
   let burnTxHash = null;
   try {
     const humanAmount = ethers.formatUnits(grossAmount, XIDR_DECIMALS);
@@ -169,7 +150,7 @@ async function autoDisburse({ campaignId, amountUnits, label }) {
   return await _serialize(updated, updated.foundation);
 }
 
-// --- Endpoint manual (dipakai ADMIN untuk lihat/retry, bukan jalur utama lagi) ---
+
 
 async function request({ campaignId, amount }) {
   const campaign = await prisma.campaign.findUnique({

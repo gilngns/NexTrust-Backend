@@ -53,7 +53,7 @@ export async function updateMe(req, res, next) {
   }
 }
 
-// ─── Donor (Mobile) ────────────────────────────────────────────────────────
+
 
 export async function donorRegister(req, res, next) {
   try {

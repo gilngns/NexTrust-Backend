@@ -61,7 +61,7 @@ describe("tokenService", () => {
     it("should mint tokens to address if balance is low", async () => {
       const res = await tokenService.mint("0xUser", 100);
       expect(res.txHash).toBe("0xMintHash");
-      // parseUnits is mocked to return 100000000, so 100000000 + 100000000 = 200000000
+      
       expect(res.amount).toBe("200000000");
     });
   });

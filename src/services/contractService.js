@@ -24,10 +24,10 @@ const escrow = new ethers.Contract(
   backendWallet,
 );
 
-// ── Gas override ────────────────────────────────────────────
-// RPC Amoy sering ngasih estimasi gas price absurd tinggi.
-// Tanpa cap ini, createCampaign/depositXIDR bisa makan 0.05-0.09 POL.
-// Dengan cap: turun ke ~0.01-0.02 POL. Amoy butuh priority min ~25 Gwei.
+
+
+
+
 function getGasOverrides() {
   return {
     maxFeePerGas: ethers.parseUnits(config.chain.maxFeeGwei, "gwei"),

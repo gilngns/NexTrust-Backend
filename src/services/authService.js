@@ -2,7 +2,7 @@ import jwt from "jsonwebtoken";
 import { promisify } from "util";
 import crypto from "crypto";
 import AppError from "../utils/AppError.js";
-import bcrypt from "bcryptjs";
+import bcrypt from "bcrypt";
 import prisma from "../config/prisma.js";
 import config from "../config/index.js";
 import walletService from "./walletService.js";
@@ -10,14 +10,36 @@ import walletService from "./walletService.js";
 const signAsync = promisify(jwt.sign);
 const verifyAsync = promisify(jwt.verify);
 
-async function _sanitize(user) {
+const BCRYPT_ROUNDS = 10;
+
+
+const TIMING = process.env.DEBUG_TIMING === "1";
+
+async function timed(label, fn) {
+  if (!TIMING) return fn();
+  const t = Date.now();
+  try {
+    return await fn();
+  } finally {
+    console.log(`[AUTH] ${label} — ${Date.now() - t}ms`);
+  }
+}
+
+const dummyHashPromise = bcrypt.hash("dummy-password-for-constant-time", BCRYPT_ROUNDS);
+
+async function _verifyPassword(password, user) {
+  if (!user) {
+    await bcrypt.compare(password, await dummyHashPromise);
+    return false;
+  }
+  return bcrypt.compare(password, user.passwordHash);
+}
+
+function _sanitize(user) {
   const { passwordHash, encryptedKey, ...rest } = user;
   return rest;
 }
 
-/**
- * Buat access token (jangka pendek) untuk semua role.
- */
 async function _signAccessToken(userId, role) {
   return signAsync(
     { userId, role },
@@ -26,26 +48,19 @@ async function _signAccessToken(userId, role) {
   );
 }
 
-/**
- * Buat refresh token opaque (random), simpan ke DB, return string-nya.
- * Refresh token disimpan di DB agar bisa di-revoke saat logout.
- */
-async function _createRefreshToken(userId) {
+async function _createRefreshToken(userId, tx = prisma) {
   const token = crypto.randomBytes(64).toString("hex");
   const expiresAt = new Date(Date.now() + _parseExpiry(config.jwtRefreshExpiresIn));
-  await prisma.refreshToken.create({ data: { token, userId, expiresAt } });
+  await tx.refreshToken.create({ data: { token, userId, expiresAt } });
   return token;
 }
 
-/**
- * Parse expiry string seperti "30d", "7d", "24h" ke milliseconds.
- */
 function _parseExpiry(expiry) {
   const match = expiry.match(/^(\d+)([smhd])$/);
   if (!match) throw new Error(`Format expiry tidak valid: ${expiry}`);
   const [, num, unit] = match;
   const multipliers = { s: 1000, m: 60000, h: 3600000, d: 86400000 };
-  return parseInt(num) * multipliers[unit];
+  return parseInt(num, 10) * multipliers[unit];
 }
 
 async function register({
@@ -64,13 +79,16 @@ async function register({
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) throw AppError.badRequest("Email sudah terdaftar");
 
-  const passwordHash = await bcrypt.hash(password, 10);
+  const passwordHash = await timed("register.hash", () =>
+    bcrypt.hash(password, BCRYPT_ROUNDS),
+  );
   const userRole = role || "FOUNDATION";
 
   let custodialAddress = null;
   let encryptedKey = null;
   if (userRole === "FOUNDATION") {
-    const w = await walletService.generate();
+    
+    const w = await timed("register.walletGenerate", () => walletService.generate());
     custodialAddress = w.address;
     encryptedKey = w.encryptedKey;
   }
@@ -92,22 +110,30 @@ async function register({
       dateOfBirth: dateOfBirth || null,
     },
   });
-  return await _sanitize(user);
+  return _sanitize(user);
 }
 
 async function login({ email, password }) {
-  const user = await prisma.user.findUnique({ where: { email } });
-  if (!user) throw AppError.unauthorized();
+  const tStart = Date.now();
 
-  const ok = await bcrypt.compare(password, user.passwordHash);
-  if (!ok) throw AppError.unauthorized();
+  const user = await timed("login.findUnique", () =>
+    prisma.user.findUnique({ where: { email } }),
+  );
 
-  const token = await _signAccessToken(user.id, user.role);
-  return { token, user: await _sanitize(user) };
+  const ok = await timed("login.compare", () => _verifyPassword(password, user));
+  if (!ok || !user) throw AppError.unauthorized();
+
+  const token = await timed("login.signToken", () =>
+    _signAccessToken(user.id, user.role),
+  );
+
+  if (TIMING) console.log(`[AUTH] login TOTAL — ${Date.now() - tStart}ms`);
+
+  return { token, user: _sanitize(user) };
 }
 
 async function verifyToken(token) {
-  return await verifyAsync(token, config.jwtSecret);
+  return verifyAsync(token, config.jwtSecret);
 }
 
 async function verifyFoundation(foundationId) {
@@ -121,45 +147,54 @@ async function verifyFoundation(foundationId) {
     data: { isVerified: true },
   });
 
-  return await _sanitize(updated);
+  return _sanitize(updated);
 }
 
-/**
- * Update profil milik sendiri (dipakai halaman Settings — mis. lengkapi
- * data rekening bank yang dibutuhkan payoutService.autoDisburse). Hanya
- * field yang dikirim yang diupdate; field lain dibiarkan apa adanya.
- */
 async function updateProfile(userId, { name, bankName, bankAccountNo, bankHolder }) {
-  const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user) throw AppError.notFound("User tidak ditemukan");
-
   const data = {};
   if (name !== undefined) data.name = name;
   if (bankName !== undefined) data.bankName = bankName;
   if (bankAccountNo !== undefined) data.bankAccountNo = bankAccountNo;
   if (bankHolder !== undefined) data.bankHolder = bankHolder;
 
-  const updated = await prisma.user.update({ where: { id: userId }, data });
-  return await _sanitize(updated);
+  if (Object.keys(data).length === 0) {
+    const current = await prisma.user.findUnique({ where: { id: userId } });
+    if (!current) throw AppError.notFound("User tidak ditemukan");
+    return _sanitize(current);
+  }
+
+  try {
+    
+    const updated = await prisma.user.update({ where: { id: userId }, data });
+    return _sanitize(updated);
+  } catch (err) {
+    if (err.code === "P2025") throw AppError.notFound("User tidak ditemukan");
+    throw err;
+  }
 }
 
-async function listFoundations() {
-  const users = await prisma.user.findMany({
-    where: { role: "FOUNDATION" },
-    orderBy: { createdAt: "desc" },
-  });
-  return users.map((u) => {
-    const { passwordHash, encryptedKey, ...rest } = u;
-    return rest;
-  });
+async function listFoundations({ page = 1, limit = 20 } = {}) {
+  const take = Math.min(100, Math.max(1, Number(limit) || 20));
+  const skip = (Math.max(1, Number(page) || 1) - 1) * take;
+
+  const [users, total] = await Promise.all([
+    prisma.user.findMany({
+      where: { role: "FOUNDATION" },
+      orderBy: { createdAt: "desc" },
+      skip,
+      take,
+    }),
+    prisma.user.count({ where: { role: "FOUNDATION" } }),
+  ]);
+
+  return {
+    data: users.map(_sanitize),
+    meta: { page: Number(page) || 1, limit: take, total, totalPages: Math.ceil(total / take) },
+  };
 }
 
-// ─── Donor Auth (Mobile) ───────────────────────────────────────────────────
 
-/**
- * Register donatur baru — selalu role DONOR.
- * `confirmPassword` sengaja tidak diteruskan, sudah divalidasi di schema layer.
- */
+
 async function donorRegister({ email, password, name, phoneNumber, dateOfBirth }) {
   return register({
     email,
@@ -171,85 +206,93 @@ async function donorRegister({ email, password, name, phoneNumber, dateOfBirth }
   });
 }
 
-/**
- * Login donatur → kembalikan access token (15m) + refresh token (30d).
- * Refresh token disimpan di DB agar bisa di-revoke saat logout.
- */
 async function donorLogin({ email, password }) {
-  const user = await prisma.user.findUnique({ where: { email } });
-  if (!user || user.role !== "DONOR") throw AppError.unauthorized();
+  const tStart = Date.now();
 
-  const ok = await bcrypt.compare(password, user.passwordHash);
-  if (!ok) throw AppError.unauthorized();
+  const user = await timed("donorLogin.findUnique", () =>
+    prisma.user.findUnique({ where: { email } }),
+  );
 
-  const accessToken = await _signAccessToken(user.id, user.role);
-  const refreshToken = await _createRefreshToken(user.id);
+  const ok = await timed("donorLogin.compare", () => _verifyPassword(password, user));
+  if (!ok || !user || user.role !== "DONOR") throw AppError.unauthorized();
 
-  return { accessToken, refreshToken, user: await _sanitize(user) };
+  const [accessToken, refreshToken] = await timed("donorLogin.issueTokens", () =>
+    Promise.all([
+      _signAccessToken(user.id, user.role),
+      _createRefreshToken(user.id),
+    ]),
+  );
+
+  if (TIMING) console.log(`[AUTH] donorLogin TOTAL — ${Date.now() - tStart}ms`);
+
+  return { accessToken, refreshToken, user: _sanitize(user) };
 }
 
-/**
- * Tukar refresh token yang valid → access token baru + refresh token baru (rotation).
- * Token lama langsung di-revoke.
- */
 async function refreshAccessToken(refreshToken) {
-  const stored = await prisma.refreshToken.findUnique({ where: { token: refreshToken } });
+  const stored = await prisma.refreshToken.findUnique({
+    where: { token: refreshToken },
+    include: { user: true },
+  });
 
   if (!stored || stored.revoked || stored.expiresAt < new Date()) {
     throw AppError.unauthorized("Refresh token tidak valid atau sudah kadaluarsa");
   }
+  if (!stored.user) throw AppError.unauthorized();
 
-  // Revoke token lama (rotation — mencegah reuse)
-  await prisma.refreshToken.update({
-    where: { id: stored.id },
-    data: { revoked: true },
+  const newRefreshToken = await prisma.$transaction(async (tx) => {
+    
+    
+    const revoked = await tx.refreshToken.updateMany({
+      where: { id: stored.id, revoked: false },
+      data: { revoked: true },
+    });
+    if (revoked.count === 0) {
+      throw AppError.unauthorized("Refresh token sudah digunakan");
+    }
+    return _createRefreshToken(stored.userId, tx);
   });
 
-  const user = await prisma.user.findUnique({ where: { id: stored.userId } });
-  if (!user) throw AppError.unauthorized();
-
-  const accessToken = await _signAccessToken(user.id, user.role);
-  const newRefreshToken = await _createRefreshToken(user.id);
+  const accessToken = await _signAccessToken(stored.user.id, stored.user.role);
 
   return { accessToken, refreshToken: newRefreshToken };
 }
 
-/**
- * Logout donatur — revoke refresh token yang dikirim.
- */
 async function logoutDonor(refreshToken) {
-  const stored = await prisma.refreshToken.findUnique({ where: { token: refreshToken } });
-  if (!stored || stored.revoked) return; // idempotent — tidak error kalau sudah revoked
-
-  await prisma.refreshToken.update({
-    where: { id: stored.id },
+  await prisma.refreshToken.updateMany({
+    where: { token: refreshToken, revoked: false },
     data: { revoked: true },
   });
 }
 
-/**
- * Profil donatur yang sedang login.
- */
 async function getMyProfile(userId) {
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) throw AppError.notFound("User tidak ditemukan");
-  return await _sanitize(user);
+  return _sanitize(user);
 }
 
-/**
- * Riwayat donasi donatur yang sedang login.
- */
-async function getMyDonations(userId) {
-  const donations = await prisma.donation.findMany({
-    where: { donorId: userId },
-    orderBy: { createdAt: "desc" },
-    include: {
-      campaign: {
-        select: { id: true, title: true, imageUrl: true, status: true },
+async function getMyDonations(userId, { page = 1, limit = 20 } = {}) {
+  const take = Math.min(50, Math.max(1, Number(limit) || 20));
+  const currentPage = Math.max(1, Number(page) || 1);
+
+  const [donations, total] = await Promise.all([
+    prisma.donation.findMany({
+      where: { donorId: userId },
+      orderBy: { createdAt: "desc" },
+      skip: (currentPage - 1) * take,
+      take,
+      include: {
+        campaign: {
+          select: { id: true, title: true, imageUrl: true, status: true },
+        },
       },
-    },
-  });
-  return donations.map((d) => ({ ...d, amount: d.amount.toString() }));
+    }),
+    prisma.donation.count({ where: { donorId: userId } }),
+  ]);
+
+  return {
+    data: donations.map((d) => ({ ...d, amount: d.amount.toString() })),
+    meta: { page: currentPage, limit: take, total, totalPages: Math.ceil(total / take) },
+  };
 }
 
 export default {

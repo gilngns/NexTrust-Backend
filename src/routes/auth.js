@@ -50,7 +50,7 @@ router.patch(
   asyncHandler(authController.updateMe),
 );
 
-// ─── Donor (Mobile) ────────────────────────────────────────────────────────
+
 
 router.post(
   "/donor/register",

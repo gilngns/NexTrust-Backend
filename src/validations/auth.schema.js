@@ -30,7 +30,7 @@ export const updateProfileSchema = z.object({
   }),
 });
 
-// ─── Donor (Mobile) ────────────────────────────────────────────────────────
+
 
 export const donorRegisterSchema = z.object({
   body: z
