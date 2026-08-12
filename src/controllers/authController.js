@@ -29,8 +29,8 @@ export async function verifyFoundation(req, res, next) {
 
 export async function listFoundations(req, res, next) {
   try {
-    const foundations = await authService.listFoundations();
-    const formatted = foundations.map(f => ({
+    const { data, meta } = await authService.listFoundations(req.query);
+    const formatted = data.map(f => ({
       id: f.id,
       name: f.name,
       email: f.email,
@@ -38,7 +38,7 @@ export async function listFoundations(req, res, next) {
       izinPub: f.izinPub || null,
       isVerified: f.isVerified
     }));
-    res.json({ success: true, foundations: formatted });
+    res.json({ success: true, foundations: formatted, meta });
   } catch (error) {
     next(error);
   }
