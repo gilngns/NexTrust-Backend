@@ -17,8 +17,15 @@ jest.unstable_mockModule("../../src/services/contractService.js", () => ({
   },
 }));
 
+jest.unstable_mockModule("../../src/services/oracleService.js", () => ({
+  default: {
+    submitScore: jest.fn(),
+  },
+}));
+
 const prisma = (await import("../../src/config/prisma.js")).default;
 const contractService = (await import("../../src/services/contractService.js")).default;
+const oracleService = (await import("../../src/services/oracleService.js")).default;
 const campaignService = (await import("../../src/services/campaignService.js")).default;
 const AppError = (await import("../../src/utils/AppError.js")).default;
 
@@ -100,8 +107,72 @@ describe("campaignService", () => {
       });
 
       await expect(campaignService.create(validPayload)).rejects.toThrow(
-        "Bad Request" 
+        "Bad Request"
       );
+    });
+
+    describe("DRAFT vs ACTIVE status gating (must reflect the RAB aiScore, fail-safe to DRAFT)", () => {
+      beforeEach(() => {
+        prisma.user.findUnique.mockResolvedValue({
+          id: "user-123",
+          custodialAddress: "0x123",
+        });
+        contractService.createCampaign.mockResolvedValue({
+          txHash: "0xabc",
+          campaignId: "chain-id-123",
+        });
+        prisma.campaign.create.mockImplementation(({ data }) =>
+          Promise.resolve({ id: "camp-123", ...data, milestones: data.milestones.create, donations: [] })
+        );
+      });
+
+      it("defaults to DRAFT when aiScore is not provided at all", async () => {
+        await campaignService.create(validPayload);
+        const createArgs = prisma.campaign.create.mock.calls[0][0];
+        expect(createArgs.data.status).toBe("DRAFT");
+        expect(oracleService.submitScore).not.toHaveBeenCalled();
+      });
+
+      it("stays DRAFT when RAB aiScore is low (e.g. 15), even though the AI ran successfully", async () => {
+        await campaignService.create({ ...validPayload, aiScore: 15 });
+        const createArgs = prisma.campaign.create.mock.calls[0][0];
+        expect(createArgs.data.status).toBe("DRAFT");
+        expect(oracleService.submitScore).not.toHaveBeenCalled();
+      });
+
+      it("becomes ACTIVE only when aiScore is a number >= 85", async () => {
+        oracleService.submitScore.mockResolvedValue({});
+        await campaignService.create({ ...validPayload, aiScore: 90 });
+        const createArgs = prisma.campaign.create.mock.calls[0][0];
+        expect(createArgs.data.status).toBe("ACTIVE");
+        expect(oracleService.submitScore).toHaveBeenCalled();
+      });
+    });
+  });
+
+  describe("planMilestones", () => {
+    beforeEach(() => {
+      global.fetch = jest.fn();
+    });
+
+    it("should return the milestone-structure score as `structureScore`, never as `aiScore` (to avoid clobbering the RAB aiScore on the client)", async () => {
+      global.fetch.mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          total_amount: 1000,
+          summary: "OK",
+          structure_check: { valid: true },
+          milestones: [
+            { title: "DP", percentage: 15 },
+            { title: "Tahap 1", percentage: 40 },
+            { title: "Tahap 2", percentage: 45 },
+          ],
+        }),
+      });
+
+      const res = await campaignService.planMilestones({ targetAmount: 1000, rabData: [] });
+      expect(res.plan.structureScore).toBe(90);
+      expect(res.plan).not.toHaveProperty("aiScore");
     });
   });
 

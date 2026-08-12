@@ -159,7 +159,7 @@ const create = async (payload) => {
       aiScore,
       aiNotes,
       rabData,
-      status: (aiScore !== undefined && aiScore < 85) ? "DRAFT" : "ACTIVE", 
+      status: (typeof aiScore === "number" && aiScore >= 85) ? "ACTIVE" : "DRAFT",
       txHashCreate: onchain.txHash,
       milestones: {
         create: dbMilestones,
@@ -496,7 +496,7 @@ async function planMilestones(payload) {
         milestoneAmount: msAmount,
         totalMilestones: mappedMilestones.length,
         milestones: mappedMilestones,
-        aiScore: data.structure_check?.valid ? 90 : 70,
+        structureScore: data.structure_check?.valid ? 90 : 70,
         notes: notes
       }
     };
@@ -515,7 +515,7 @@ async function planMilestones(payload) {
           { order: 2, title: "Tahap 2: Pengerjaan", percentage: 30 },
           { order: 3, title: "Tahap 3: Penyelesaian", percentage: 40 }
         ],
-        aiScore: 85,
+        structureScore: 85,
         notes: `[MOCK] Sistem fallback karena gagal kontak AI: ${error.message}`
       }
     };

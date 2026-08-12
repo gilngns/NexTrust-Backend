@@ -14,6 +14,14 @@ async function initiate({ campaignId, donorId, donorName, amountRupiah }) {
   });
   if (!campaign) throw AppError.notFound();
 
+  if (campaign.status !== "ACTIVE") {
+    throw AppError.badRequest(
+      campaign.status === "DRAFT"
+        ? "Kampanye ini masih menunggu ACC (persetujuan) Dinsos karena skor RAB di bawah 85, sehingga belum bisa menerima donasi."
+        : "Kampanye ini sedang tidak aktif menerima donasi."
+    );
+  }
+
   const onChainState = await contractService.getCampaignState(campaign.onChainId);
   if (onChainState !== 0n) { 
     throw AppError.badRequest("Kampanye sudah mencapai target atau tidak aktif.");

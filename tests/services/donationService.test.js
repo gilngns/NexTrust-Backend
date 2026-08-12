@@ -65,7 +65,7 @@ describe("donationService", () => {
 
   describe("initiate", () => {
     it("should initiate donation and return order details", async () => {
-      prisma.campaign.findUnique.mockResolvedValue({ id: "camp-1", onChainId: "chain-1" });
+      prisma.campaign.findUnique.mockResolvedValue({ id: "camp-1", onChainId: "chain-1", status: "ACTIVE" });
       walletService.generate.mockResolvedValue({ address: "0xDonor" });
       midtransService.createQris.mockResolvedValue({ qrisUrl: "http://qris.url" });
       ethers.parseUnits.mockReturnValue(BigInt(100000000));
@@ -85,6 +85,24 @@ describe("donationService", () => {
       expect(result.qrisUrl).toBe("http://qris.url");
       expect(result.amountRupiah).toBe(100000);
       expect(result).toHaveProperty("orderId");
+    });
+
+    it("should reject donation if campaign is still DRAFT pending Dinsos approval (AI score below 85)", async () => {
+      prisma.campaign.findUnique.mockResolvedValue({ id: "camp-1", onChainId: "chain-1", status: "DRAFT" });
+
+      const payload = { campaignId: "camp-1", donorName: "Alice", amountRupiah: 100000 };
+
+      await expect(donationService.initiate(payload)).rejects.toThrow("ACC (persetujuan) Dinsos");
+      expect(walletService.generate).not.toHaveBeenCalled();
+      expect(prisma.donation.create).not.toHaveBeenCalled();
+    });
+
+    it("should reject donation if campaign status is not ACTIVE (e.g. already FUNDED)", async () => {
+      prisma.campaign.findUnique.mockResolvedValue({ id: "camp-1", onChainId: "chain-1", status: "FUNDED" });
+
+      const payload = { campaignId: "camp-1", donorName: "Alice", amountRupiah: 100000 };
+
+      await expect(donationService.initiate(payload)).rejects.toThrow("tidak aktif menerima donasi");
     });
   });
 
