@@ -75,7 +75,8 @@ const create = async (payload) => {
   const grossTarget = requestedTarget + platformFee;
 
   const requestedAdvance = BigInt(Math.floor(advanceAmount || 0));
-  const grossAdvance = requestedAdvance + platformFee;
+  const advanceFee = (requestedAdvance * 3n) / 100n;
+  const grossAdvance = requestedAdvance + advanceFee;
 
   const targetToken = ethers.parseUnits(grossTarget.toString(), 6);
   const advanceToken = ethers.parseUnits(grossAdvance.toString(), 6);
